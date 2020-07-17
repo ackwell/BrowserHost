@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace BrowserRenderer
 {
@@ -20,6 +21,8 @@ namespace BrowserRenderer
             AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
             Init();
+
+            Console.WriteLine("Render process shutting down.");
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -31,8 +34,6 @@ namespace BrowserRenderer
             };
 
             Cef.Initialize(settings, performDependencyCheck: false, browserProcessHandler: null);
-
-            Console.WriteLine("CEF INITIALISED");
         }
 
         private static Assembly CustomAssemblyResolver(object sender, ResolveEventArgs args)
@@ -44,7 +45,7 @@ namespace BrowserRenderer
 
             if (!File.Exists(assemblyPath))
             {
-                Console.Error.WriteLine("Could not find assembly `{0}` at search path `{1}`", assemblyName, assemblyPath);
+                Console.Error.WriteLine($"Could not find assembly `{assemblyName}` at search path `{assemblyPath}`");
                 return null;
             }
 

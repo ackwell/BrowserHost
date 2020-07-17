@@ -1,4 +1,5 @@
 ﻿using Dalamud.Plugin;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -31,8 +32,8 @@ namespace BrowserHost
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             };
-            renderProcess.OutputDataReceived += (object sender, DataReceivedEventArgs args) => PluginLog.Log(args.Data);
-            renderProcess.ErrorDataReceived += (object sender, DataReceivedEventArgs args) => PluginLog.LogError(args.Data);
+            renderProcess.OutputDataReceived += (sender, args) => PluginLog.Log($"[Render]: {args.Data}");
+            renderProcess.ErrorDataReceived += (sender, args) => PluginLog.LogError($"[Render]: {args.Data}");
 
             PluginLog.Log("Booting render process.");
 
@@ -45,7 +46,8 @@ namespace BrowserHost
 
         public void Dispose()
         {
-            renderProcess.Kill();
+            try { renderProcess.Kill(); }
+            catch (InvalidOperationException) { }
             renderProcess.Dispose();
 
             pluginInterface.Dispose();
