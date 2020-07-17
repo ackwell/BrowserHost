@@ -16,7 +16,7 @@ namespace BrowserHost
         {
             this.pluginInterface = pluginInterface;
 
-            PluginLog.Log("Booting render process.");
+            PluginLog.Log("Configuring render process.");
 
             var rendererPath = Path.Combine(
                 Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
@@ -27,16 +27,27 @@ namespace BrowserHost
             {
                 FileName = rendererPath,
                 UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
             };
+            renderProcess.OutputDataReceived += (object sender, DataReceivedEventArgs args) => PluginLog.Log(args.Data);
+            renderProcess.ErrorDataReceived += (object sender, DataReceivedEventArgs args) => PluginLog.LogError(args.Data);
+
+            PluginLog.Log("Booting render process.");
 
             renderProcess.Start();
+            renderProcess.BeginOutputReadLine();
+            renderProcess.BeginErrorReadLine();
 
             PluginLog.Log("Loaded.");
         }
 
         public void Dispose()
         {
+            renderProcess.Kill();
             renderProcess.Dispose();
+
             pluginInterface.Dispose();
         }
     }

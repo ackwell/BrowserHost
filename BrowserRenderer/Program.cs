@@ -6,8 +6,8 @@ namespace BrowserRenderer
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Running");
-            Console.ReadLine();
+            Console.WriteLine("Renderer running");
+            Console.Error.WriteLine("This is in the error stream");
         }
     }
 }
