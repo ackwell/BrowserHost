@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 
 namespace BrowserHost
 {
@@ -46,9 +47,15 @@ namespace BrowserHost
 
         public void Dispose()
         {
+            // TODO: If I go down the wait handle path, generate a guid for the handle name and pass over process args to sync.
+            var waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, "DalamudBrowserHostTestHandle");
+            waitHandle.Set();
+            renderProcess.WaitForExit(1000);
             try { renderProcess.Kill(); }
             catch (InvalidOperationException) { }
             renderProcess.Dispose();
+
+            waitHandle.Dispose();
 
             pluginInterface.Dispose();
         }

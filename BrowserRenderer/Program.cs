@@ -14,19 +14,29 @@ namespace BrowserRenderer
             AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
             Environment.Is64BitProcess ? "x64" : "x86");
 
+        private static ChromiumWebBrowser browser;
+
         static void Main(string[] args)
         {
             Console.WriteLine("Render process running.");
 
             AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
-            Init();
+            InitialiseCef();
+
+            Console.WriteLine("Waiting...");
+
+            var waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, "DalamudBrowserHostTestHandle");
+            waitHandle.WaitOne();
+            waitHandle.Dispose();
 
             Console.WriteLine("Render process shutting down.");
+
+            DisposeCef();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void Init()
+        private static void InitialiseCef()
         {
             var settings = new CefSettings()
             {
@@ -34,6 +44,20 @@ namespace BrowserRenderer
             };
 
             Cef.Initialize(settings, performDependencyCheck: false, browserProcessHandler: null);
+
+            browser = new ChromiumWebBrowser("https://www.google.com/");
+            browser.LoadingStateChanged += BrowserLoadingStateChanged;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void DisposeCef()
+        {
+            Cef.Shutdown();
+        }
+
+        private static void BrowserLoadingStateChanged(object sender, LoadingStateChangedEventArgs args)
+        {
+            Console.WriteLine($"State change: {args.IsLoading}");
         }
 
         private static Assembly CustomAssemblyResolver(object sender, ResolveEventArgs args)
