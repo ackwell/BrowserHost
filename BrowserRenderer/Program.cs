@@ -1,6 +1,8 @@
 ﻿using CefSharp;
 using CefSharp.OffScreen;
+using SharedMemory;
 using System;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -16,9 +18,15 @@ namespace BrowserRenderer
 
         private static ChromiumWebBrowser browser;
 
+        // Maybe circular buffer if we start moving dirty states around?
+        private static CircularBuffer producer;
+
         static void Main(string[] args)
         {
             Console.WriteLine("Render process running.");
+
+            // We don't specify size, consumer will create the initial buffer.
+            producer = new CircularBuffer("DalamudBrowserHostFrameBuffer");
 
             AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
@@ -33,6 +41,8 @@ namespace BrowserRenderer
             Console.WriteLine("Render process shutting down.");
 
             DisposeCef();
+
+            producer.Dispose();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -58,6 +68,27 @@ namespace BrowserRenderer
         private static void BrowserLoadingStateChanged(object sender, LoadingStateChangedEventArgs args)
         {
             Console.WriteLine($"State change: {args.IsLoading}");
+
+            if (args.IsLoading) { return; }
+
+            //TODO: Use a proper render target thing. custom format on wire to only pass dirty?
+            browser.ScreenshotAsync().ContinueWith(task =>
+            {
+                var bm = task.Result;
+
+                byte[] output;
+                using (var stream = new MemoryStream())
+                {
+                    bm.Save(stream, ImageFormat.Bmp); // memorybmp?
+                    output = stream.ToArray();
+                }
+
+                bm.Save(Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase, "BEFORE.png"), ImageFormat.Png);
+
+                Console.WriteLine($"Writing with size {output.Length}");
+                producer.Write(new[] { output.Length });
+                producer.Write(output);
+            });
         }
 
         private static Assembly CustomAssemblyResolver(object sender, ResolveEventArgs args)
