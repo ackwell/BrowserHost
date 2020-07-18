@@ -9,7 +9,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace BrowserRenderer
+namespace BrowserHost.Renderer
 {
     class Program
     {

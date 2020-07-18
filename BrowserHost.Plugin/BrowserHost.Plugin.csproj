@@ -7,8 +7,8 @@
     <ProjectGuid>{D047232D-8C20-4185-AC61-78AED2A1EA74}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>BrowserHost</RootNamespace>
-    <AssemblyName>BrowserHost</AssemblyName>
+    <RootNamespace>BrowserHost.Plugin</RootNamespace>
+    <AssemblyName>BrowserHost.Plugin</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -57,11 +57,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BrowserHost.cs" />
+    <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="BrowserHost.json">
+    <None Include="BrowserHost.Plugin.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />

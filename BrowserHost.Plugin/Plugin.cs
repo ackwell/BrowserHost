@@ -8,9 +8,9 @@ using System.Numerics;
 using System.Reflection;
 using System.Threading;
 
-namespace BrowserHost
+namespace BrowserHost.Plugin
 {
-    public class BrowserHost : IDalamudPlugin
+    public class Plugin : IDalamudPlugin
     {
         public string Name => "Browser Host";
 
