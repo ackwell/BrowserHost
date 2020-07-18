@@ -2,6 +2,7 @@
 using CefSharp.OffScreen;
 using SharedMemory;
 using System;
+using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
@@ -12,18 +13,24 @@ namespace BrowserRenderer
 {
     class Program
     {
-        private static string CefAssemblyPath => Path.Combine(
+        private static string cefAssemblyPath => Path.Combine(
             AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
             Environment.Is64BitProcess ? "x64" : "x86");
 
         private static ChromiumWebBrowser browser;
 
-        // Maybe circular buffer if we start moving dirty states around?
         private static CircularBuffer producer;
+
+        private static Thread parentWatchThread;
+        private static EventWaitHandle waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, "DalamudBrowserHostTestHandle");
 
         static void Main(string[] args)
         {
             Console.WriteLine("Render process running.");
+
+            // Boot up a thread to make sure we shut down if parent dies
+            parentWatchThread = new Thread(WatchParentStatus);
+            parentWatchThread.Start(int.Parse(args[0]));
 
             // We don't specify size, consumer will create the initial buffer.
             producer = new CircularBuffer("DalamudBrowserHostFrameBuffer");
@@ -34,7 +41,6 @@ namespace BrowserRenderer
 
             Console.WriteLine("Waiting...");
 
-            var waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, "DalamudBrowserHostTestHandle");
             waitHandle.WaitOne();
             waitHandle.Dispose();
 
@@ -43,6 +49,21 @@ namespace BrowserRenderer
             DisposeCef();
 
             producer.Dispose();
+
+            parentWatchThread.Abort();
+        }
+
+        private static void WatchParentStatus(object pid)
+        {
+            Console.WriteLine($"Watching parent PID {pid}");
+            var process = Process.GetProcessById((int)pid);
+            process.WaitForExit();
+            waitHandle.Set();
+
+            var self = Process.GetCurrentProcess();
+            self.WaitForExit(1000);
+            try { self.Kill(); }
+            catch (InvalidOperationException) { }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -50,7 +71,7 @@ namespace BrowserRenderer
         {
             var settings = new CefSettings()
             {
-                BrowserSubprocessPath = Path.Combine(CefAssemblyPath, "CefSharp.BrowserSubprocess.exe"),
+                BrowserSubprocessPath = Path.Combine(cefAssemblyPath, "CefSharp.BrowserSubprocess.exe"),
             };
 
             Cef.Initialize(settings, performDependencyCheck: false, browserProcessHandler: null);
@@ -96,7 +117,7 @@ namespace BrowserRenderer
             if (!args.Name.StartsWith("CefSharp")) { return null; }
 
             var assemblyName = args.Name.Split(new[] { ',' }, 2)[0] + ".dll";
-            var assemblyPath = Path.Combine(CefAssemblyPath, assemblyName);
+            var assemblyPath = Path.Combine(cefAssemblyPath, assemblyName);
 
             if (!File.Exists(assemblyPath))
             {

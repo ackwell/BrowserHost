@@ -17,7 +17,7 @@ namespace BrowserHost
         private DalamudPluginInterface pluginInterface;
         private Process renderProcess;
 
-        private static CircularBuffer consumer;
+        private CircularBuffer consumer;
 
         private Thread thread;
 
@@ -27,7 +27,7 @@ namespace BrowserHost
 
             consumer = new CircularBuffer("DalamudBrowserHostFrameBuffer", nodeCount: 5, nodeBufferSize: 1024 * 1024 * 10 /* 10M */);
 
-            thread = new Thread(new ThreadStart(ThreadProc));
+            thread = new Thread(ThreadProc);
             thread.Start();
 
             PluginLog.Log("Configuring render process.");
@@ -44,6 +44,7 @@ namespace BrowserHost
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                Arguments = $"{Process.GetCurrentProcess().Id}",
             };
             renderProcess.OutputDataReceived += (sender, args) => PluginLog.Log($"[Render]: {args.Data}");
             renderProcess.ErrorDataReceived += (sender, args) => PluginLog.LogError($"[Render]: {args.Data}");
@@ -57,7 +58,7 @@ namespace BrowserHost
             PluginLog.Log("Loaded.");
         }
 
-        private static void ThreadProc()
+        private void ThreadProc()
         {
             // TODO: Struct this or something
             // First data value will be the size of incoming bitmap
