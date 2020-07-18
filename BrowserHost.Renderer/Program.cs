@@ -22,11 +22,15 @@ namespace BrowserHost.Renderer
         private static CircularBuffer producer;
 
         private static Thread parentWatchThread;
-        private static EventWaitHandle waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, "DalamudBrowserHostTestHandle");
+        private static EventWaitHandle waitHandle;
 
         static void Main(string[] args)
         {
             Console.WriteLine("Render process running.");
+
+            var parentPid = int.Parse(args[0]);
+
+            waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, $"BrowserHostRendererKeepAlive{parentPid}");
 
             // Boot up a thread to make sure we shut down if parent dies
             parentWatchThread = new Thread(WatchParentStatus);

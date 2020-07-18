@@ -15,7 +15,8 @@ namespace BrowserHost.Plugin
         public string Name => "Browser Host";
 
         private DalamudPluginInterface pluginInterface;
-        private Process renderProcess;
+
+        private RenderProcess renderProcess;
 
         private CircularBuffer consumer;
 
@@ -35,28 +36,9 @@ namespace BrowserHost.Plugin
 
             PluginLog.Log("Configuring render process.");
 
-            var rendererPath = Path.Combine(
-                Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                "BrowserRenderer.exe");
+            var pid = Process.GetCurrentProcess().Id;
 
-            renderProcess = new Process();
-            renderProcess.StartInfo = new ProcessStartInfo()
-            {
-                FileName = rendererPath,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                Arguments = $"{Process.GetCurrentProcess().Id}",
-            };
-            renderProcess.OutputDataReceived += (sender, args) => PluginLog.Log($"[Render]: {args.Data}");
-            renderProcess.ErrorDataReceived += (sender, args) => PluginLog.LogError($"[Render]: {args.Data}");
-
-            PluginLog.Log("Booting render process.");
-
-            renderProcess.Start();
-            renderProcess.BeginOutputReadLine();
-            renderProcess.BeginErrorReadLine();
+            renderProcess = new RenderProcess(pid);
 
             PluginLog.Log("Loaded.");
         }
@@ -99,15 +81,7 @@ namespace BrowserHost.Plugin
 
         public void Dispose()
         {
-            // TODO: If I go down the wait handle path, generate a guid for the handle name and pass over process args to sync.
-            var waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, "DalamudBrowserHostTestHandle");
-            waitHandle.Set();
-            renderProcess.WaitForExit(1000);
-            try { renderProcess.Kill(); }
-            catch (InvalidOperationException) { }
             renderProcess.Dispose();
-
-            waitHandle.Dispose();
 
             thread.Join();
 
