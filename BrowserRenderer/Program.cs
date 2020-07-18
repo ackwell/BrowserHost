@@ -104,8 +104,6 @@ namespace BrowserRenderer
                     output = stream.ToArray();
                 }
 
-                bm.Save(Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase, "BEFORE.png"), ImageFormat.Png);
-
                 Console.WriteLine($"Writing with size {output.Length}");
                 producer.Write(new[] { output.Length });
                 producer.Write(output);

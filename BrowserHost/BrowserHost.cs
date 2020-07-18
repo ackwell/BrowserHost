@@ -1,10 +1,10 @@
 ﻿using Dalamud.Plugin;
+using ImGuiNET;
 using SharedMemory;
 using System;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
+using System.Numerics;
 using System.Reflection;
 using System.Threading;
 
@@ -21,9 +21,12 @@ namespace BrowserHost
 
         private Thread thread;
 
+        private byte[] frameBuffer;
+
         public void Initialize(DalamudPluginInterface pluginInterface)
         {
             this.pluginInterface = pluginInterface;
+            pluginInterface.UiBuilder.OnBuildUi += DrawUi;
 
             consumer = new CircularBuffer("DalamudBrowserHostFrameBuffer", nodeCount: 5, nodeBufferSize: 1024 * 1024 * 10 /* 10M */);
 
@@ -72,15 +75,26 @@ namespace BrowserHost
 
             PluginLog.Log($"Read bitmap buffer of size {size}");
 
-            // Read the buffer into a bitmap via a memory stream, write to disk.
-            Bitmap bm;
-            using (var stream = new MemoryStream(buffer))
-            {
-                bm = new Bitmap(stream);
-                bm.Save(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "AFTER.png"), ImageFormat.Png);
-            }
+            frameBuffer = buffer;
+        }
 
-            PluginLog.Log("Bitmap saved to disk.");
+        private void DrawUi()
+        {
+            if (ImGui.Begin("BrowserHost"))
+            {
+                var ready = frameBuffer != null;
+                ImGui.Text($"ready: {ready}");
+
+                if (ready)
+                {
+                    // THIS IS WHOLLY RELIANT ON A FIX TO IMGUISCENE. IT WILL _NOT_ WORK ON REGULAR BUILDS.
+                    // (need to fix `MemoryStream` constructor call in `RawDX11Scene.LoadImage(byte[])`)
+                    // TODO: NUKE.
+                    var tex = pluginInterface.UiBuilder.LoadImage(frameBuffer);
+                    ImGui.Image(tex.ImGuiHandle, new Vector2(tex.Width, tex.Height));
+                }
+            }
+            ImGui.End();
         }
 
         public void Dispose()
