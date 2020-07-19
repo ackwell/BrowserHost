@@ -2,8 +2,9 @@
 using CefSharp.OffScreen;
 using SharedMemory;
 using SharpDX;
-using SharpDX.Direct3D11;
-using SharpDX.DXGI;
+using D3D = SharpDX.Direct3D;
+using D3D11 = SharpDX.Direct3D11;
+using DXGI = SharpDX.DXGI;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -12,6 +13,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using SharpDX.Direct3D11;
 
 namespace BrowserHost.Renderer
 {
@@ -116,43 +118,68 @@ namespace BrowserHost.Renderer
 					output = stream.ToArray();
 				}
 
-				TestBuildTexture(bm);
-
 				Console.WriteLine($"Writing with size {output.Length}");
 				producer.Write(new[] { output.Length });
 				producer.Write(output);
+
+				var resPtr = TestBuildTexture(bm);
+				producer.Write(new[] { resPtr });
 			});
 		}
 
-		private static void TestBuildTexture(Bitmap bitmap)
+		private static IntPtr TestBuildTexture(Bitmap bitmap)
 		{
 			var bmRect = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
 			var data = bitmap.LockBits(bmRect, ImageLockMode.ReadOnly, PixelFormat.Format32bppPArgb);
 
-			var texDesc = new Texture2DDescription()
+			var texDesc = new D3D11.Texture2DDescription()
 			{
 				Width = bitmap.Width,
 				Height = bitmap.Height,
 				MipLevels = 1,
 				ArraySize = 1,
-				Format = Format.R8G8B8A8_UNorm,
-				SampleDescription = new SampleDescription(1, 0),
-				Usage = ResourceUsage.Immutable, // Dynamic?
-				BindFlags = BindFlags.ShaderResource,
-				CpuAccessFlags = CpuAccessFlags.None, // Write?
-				OptionFlags = ResourceOptionFlags.None, // Shared stuff?
+				Format = DXGI.Format.B8G8R8A8_UNorm,
+				SampleDescription = new DXGI.SampleDescription(1, 0),
+				//Usage = D3D11.ResourceUsage.Immutable, // Dynamic?
+				Usage = D3D11.ResourceUsage.Default, //?
+				BindFlags = D3D11.BindFlags.ShaderResource, // Might need render target?
+				CpuAccessFlags = D3D11.CpuAccessFlags.None, // Write?
+				OptionFlags = D3D11.ResourceOptionFlags.Shared, //keyedmutex?
 			};
 
+			//IntPtr resPtr;
 			// ?? would like to know what this actually is returning. hopefully the right device.
-			var device = new SharpDX.Direct3D11.Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.BgraSupport);
+			// TODO: Store ref to the device. Creating a new one every time we gen tex is abysmal. Only okay atm because one tex.
+			//using (var device = new D3D11.Device(D3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport))
+			//using (var texture = new D3D11.Texture2D(device, texDesc, new DataRectangle(data.Scan0, data.Stride)))
+			//using (var resource = texture.QueryInterface<DXGI.Resource>())
+			//{
+			//	resPtr = resource.SharedHandle;
+			//}
 
-			var texture = new Texture2D(device, texDesc, new DataRectangle(data.Scan0, data.Stride));
+			var factory = new DXGI.Factory1();
+			//var adapters = factory.Adapters1;
+			//foreach (var adapter in adapters)
+			//{
+			//	Console.WriteLine($"ADPT: {adapter.Description1.Description}");
+			//}
+			var adapter = factory.GetAdapter1(0);
+			Console.WriteLine($"Using adapter {adapter.Description.Description}");
+			var device = new D3D11.Device(adapter, D3D11.DeviceCreationFlags.BgraSupport);
 
-			Console.WriteLine($"TEX: {texture.Description.Width} {texture.Description.Height} {texture}");
-
-			texture.Dispose();
+			//var device = new D3D11.Device(D3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport);
+			var texture = new D3D11.Texture2D(device, texDesc, new DataRectangle(data.Scan0, data.Stride));
+			var resource = texture.QueryInterface<DXGI.Resource>();
+			var resPtr = resource.SharedHandle;
 
 			bitmap.UnlockBits(data);
+
+			// Test more shit
+			//var thing = device.OpenSharedResource<Texture2D>(resPtr);
+			//Console.WriteLine($"SR: {thing}");
+
+			Console.WriteLine($"RESPTR: {resPtr}");
+			return resPtr;
 		}
 
 		private static Assembly CustomAssemblyResolver(object sender, ResolveEventArgs args)
