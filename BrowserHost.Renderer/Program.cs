@@ -1,8 +1,12 @@
 ﻿using CefSharp;
 using CefSharp.OffScreen;
 using SharedMemory;
+using SharpDX;
+using SharpDX.Direct3D11;
+using SharpDX.DXGI;
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
@@ -40,6 +44,10 @@ namespace BrowserHost.Renderer
 			producer = new CircularBuffer("DalamudBrowserHostFrameBuffer");
 
 			AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
+
+#if DEBUG
+			AppDomain.CurrentDomain.FirstChanceException += (obj, e) => Console.Error.WriteLine(e.Exception.ToString());
+#endif
 
 			InitialiseCef();
 
@@ -108,18 +116,64 @@ namespace BrowserHost.Renderer
 					output = stream.ToArray();
 				}
 
+				TestBuildTexture(bm);
+
 				Console.WriteLine($"Writing with size {output.Length}");
 				producer.Write(new[] { output.Length });
 				producer.Write(output);
 			});
 		}
 
+		private static void TestBuildTexture(Bitmap bitmap)
+		{
+			var bmRect = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
+			var data = bitmap.LockBits(bmRect, ImageLockMode.ReadOnly, PixelFormat.Format32bppPArgb);
+
+			var texDesc = new Texture2DDescription()
+			{
+				Width = bitmap.Width,
+				Height = bitmap.Height,
+				MipLevels = 1,
+				ArraySize = 1,
+				Format = Format.R8G8B8A8_UNorm,
+				SampleDescription = new SampleDescription(1, 0),
+				Usage = ResourceUsage.Immutable, // Dynamic?
+				BindFlags = BindFlags.ShaderResource,
+				CpuAccessFlags = CpuAccessFlags.None, // Write?
+				OptionFlags = ResourceOptionFlags.None, // Shared stuff?
+			};
+
+			// ?? would like to know what this actually is returning. hopefully the right device.
+			var device = new SharpDX.Direct3D11.Device(SharpDX.Direct3D.DriverType.Hardware, DeviceCreationFlags.BgraSupport);
+
+			var texture = new Texture2D(device, texDesc, new DataRectangle(data.Scan0, data.Stride));
+
+			Console.WriteLine($"TEX: {texture.Description.Width} {texture.Description.Height} {texture}");
+
+			texture.Dispose();
+
+			bitmap.UnlockBits(data);
+		}
+
 		private static Assembly CustomAssemblyResolver(object sender, ResolveEventArgs args)
 		{
-			if (!args.Name.StartsWith("CefSharp")) { return null; }
-
 			var assemblyName = args.Name.Split(new[] { ',' }, 2)[0] + ".dll";
-			var assemblyPath = Path.Combine(cefAssemblyPath, assemblyName);
+
+			string assemblyPath = null;
+			if (assemblyName.StartsWith("CefSharp"))
+			{
+				assemblyPath = Path.Combine(cefAssemblyPath, assemblyName);
+			}
+			else if (assemblyName.StartsWith("SharpDX"))
+			{
+				// TODO: Obtain this path sanely, probably pass down dalamud dir from parent proc
+				assemblyPath = Path.Combine(
+					AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
+					"..", "..", "addon", "Hooks",
+					assemblyName);
+			}
+
+			if (assemblyPath == null) { return null; }
 
 			if (!File.Exists(assemblyPath))
 			{
