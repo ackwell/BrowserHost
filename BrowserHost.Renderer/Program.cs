@@ -13,7 +13,6 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using SharpDX.Direct3D11;
 
 namespace BrowserHost.Renderer
 {
@@ -43,7 +42,7 @@ namespace BrowserHost.Renderer
 			parentWatchThread.Start(int.Parse(args[0]));
 
 			// We don't specify size, consumer will create the initial buffer.
-			producer = new CircularBuffer("DalamudBrowserHostFrameBuffer");
+			producer = new CircularBuffer($"DalamudBrowserHostFrameBuffer{parentPid}");
 
 			AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
@@ -106,22 +105,10 @@ namespace BrowserHost.Renderer
 
 			if (args.IsLoading) { return; }
 
-			//TODO: Use a proper render target thing. custom format on wire to only pass dirty?
+			//TODO: Use a proper render target thing (OnPaint?)
 			browser.ScreenshotAsync().ContinueWith(task =>
 			{
 				var bm = task.Result;
-
-				byte[] output;
-				using (var stream = new MemoryStream())
-				{
-					bm.Save(stream, ImageFormat.Bmp); // memorybmp?
-					output = stream.ToArray();
-				}
-
-				Console.WriteLine($"Writing with size {output.Length}");
-				producer.Write(new[] { output.Length });
-				producer.Write(output);
-
 				var resPtr = TestBuildTexture(bm);
 				producer.Write(new[] { resPtr });
 			});
@@ -140,43 +127,26 @@ namespace BrowserHost.Renderer
 				ArraySize = 1,
 				Format = DXGI.Format.B8G8R8A8_UNorm,
 				SampleDescription = new DXGI.SampleDescription(1, 0),
-				//Usage = D3D11.ResourceUsage.Immutable, // Dynamic?
-				Usage = D3D11.ResourceUsage.Default, //?
+				Usage = D3D11.ResourceUsage.Default, // OG uses Immutable... we might need Dynamic?
 				BindFlags = D3D11.BindFlags.ShaderResource, // Might need render target?
 				CpuAccessFlags = D3D11.CpuAccessFlags.None, // Write?
-				OptionFlags = D3D11.ResourceOptionFlags.Shared, //keyedmutex?
+				// TODO: Look into getting SharedKeyedmutex working without a CTD from the plugin side.
+				OptionFlags = D3D11.ResourceOptionFlags.Shared,
 			};
 
-			//IntPtr resPtr;
-			// ?? would like to know what this actually is returning. hopefully the right device.
+			// TODO: Need to ensure that our render device is on the same adapter as the primary game process.
 			// TODO: Store ref to the device. Creating a new one every time we gen tex is abysmal. Only okay atm because one tex.
-			//using (var device = new D3D11.Device(D3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport))
-			//using (var texture = new D3D11.Texture2D(device, texDesc, new DataRectangle(data.Scan0, data.Stride)))
-			//using (var resource = texture.QueryInterface<DXGI.Resource>())
-			//{
-			//	resPtr = resource.SharedHandle;
-			//}
-
-			var factory = new DXGI.Factory1();
-			//var adapters = factory.Adapters1;
-			//foreach (var adapter in adapters)
-			//{
-			//	Console.WriteLine($"ADPT: {adapter.Description1.Description}");
-			//}
-			var adapter = factory.GetAdapter1(0);
-			Console.WriteLine($"Using adapter {adapter.Description.Description}");
-			var device = new D3D11.Device(adapter, D3D11.DeviceCreationFlags.BgraSupport);
-
-			//var device = new D3D11.Device(D3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport);
+			// TODO: Probs ref the texture as well tbqh
+			var device = new D3D11.Device(D3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport);
 			var texture = new D3D11.Texture2D(device, texDesc, new DataRectangle(data.Scan0, data.Stride));
-			var resource = texture.QueryInterface<DXGI.Resource>();
-			var resPtr = resource.SharedHandle;
+
+			IntPtr resPtr;
+			using (var resource = texture.QueryInterface<DXGI.Resource>())
+			{
+				resPtr = resource.SharedHandle;
+			}
 
 			bitmap.UnlockBits(data);
-
-			// Test more shit
-			//var thing = device.OpenSharedResource<Texture2D>(resPtr);
-			//Console.WriteLine($"SR: {thing}");
 
 			Console.WriteLine($"RESPTR: {resPtr}");
 			return resPtr;
