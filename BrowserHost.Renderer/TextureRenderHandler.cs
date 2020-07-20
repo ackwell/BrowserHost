@@ -51,20 +51,17 @@ namespace BrowserHost.Renderer
 			// TODO: Handle popups
 			if (type == PaintElementType.Popup) { return; }
 
-			// TODO: Reuse this, should only need one.
-
 			// TODO: Define this better. The incoming buffer is a ptr to a 32-bit BGRA buffer, so 4 bytes per pixel.
 			var bytesPerPixel = 4;
-			//texture.Device.ImmediateContext.
 
-			// TODO: Map?
-			//texture.Device.ImmediateContext.CopySubresourceRegion();
-			// TODO: copy subresource region?
-			texture.Device.ImmediateContext.UpdateSubresource(new DataBox(buffer, width * bytesPerPixel, width * height * bytesPerPixel), texture);
-			texture.Device.ImmediateContext.Flush();
+			var context = texture.Device.ImmediateContext;
 
-			// TODO: render to a shared texture
-			//throw new NotImplementedException();
+			// TODO: This is very much a cruddy MVP impl. Few things to look into:
+			//   - STAGING texture w/ CopySubresourceRegion
+			//   - Only updating the dirty rect
+			//   - Maps?
+			context.UpdateSubresource(new DataBox(buffer, width * bytesPerPixel, width * height * bytesPerPixel), texture);
+			context.Flush();
 		}
 
 		public void OnAcceleratedPaint(PaintElementType type, Rect dirtyRect, IntPtr sharedHandle)

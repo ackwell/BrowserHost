@@ -86,13 +86,14 @@ namespace BrowserHost.Renderer
 			{
 				BrowserSubprocessPath = Path.Combine(cefAssemblyPath, "CefSharp.BrowserSubprocess.exe"),
 			};
+			settings.CefCommandLineArgs["autoplay-policy"] = "no-user-gesture-required";
 
 			Cef.Initialize(settings, performDependencyCheck: false, browserProcessHandler: null);
 
-			var width = 640;
-			var height = 480;
+			var width = 800;
+			var height = 800;
 
-			// Build the tex. holy dupes batman
+			// Build the texture
 			// TODO: Need to ensure that our render device is on the same adapter as the primary game process.
 			// TODO: Store ref to the device. Creating a new one every time we gen tex is abysmal. Only okay atm because one tex.
 			// TODO: Probs ref the texture as well tbqh
@@ -105,8 +106,8 @@ namespace BrowserHost.Renderer
 				ArraySize = 1,
 				Format = DXGI.Format.B8G8R8A8_UNorm,
 				SampleDescription = new DXGI.SampleDescription(1, 0),
-				Usage = D3D11.ResourceUsage.Default, // OG uses Immutable... we might need Dynamic?
-				BindFlags = D3D11.BindFlags.ShaderResource, // Might need render target?
+				Usage = D3D11.ResourceUsage.Default,
+				BindFlags = D3D11.BindFlags.ShaderResource,
 				CpuAccessFlags = D3D11.CpuAccessFlags.None,
 				// TODO: Look into getting SharedKeyedmutex working without a CTD from the plugin side.
 				OptionFlags = D3D11.ResourceOptionFlags.Shared,
@@ -117,103 +118,38 @@ namespace BrowserHost.Renderer
 			{
 				resPtr = resource.SharedHandle;
 			}
+
+			// Pass texture over to plugin proc
 			producer.Write(new[] { resPtr });
 
-			// ew. dedupe and all that shitty jazz
-			//var sharedTexture = new D3D11.Texture2D(device, new D3D11.Texture2DDescription()
-			//{
-			//	Width = width,
-			//	Height = height,
-			//	MipLevels = 1,
-			//	ArraySize = 1,
-			//	Format = DXGI.Format.B8G8R8A8_UNorm,
-			//	SampleDescription = new DXGI.SampleDescription(1, 0),
-			//	Usage = D3D11.ResourceUsage.Staging,
-			//	CpuAccessFlags = D3D11.CpuAccessFlags.Write,
-			//	OptionFlags = D3D11.ResourceOptionFlags.None,
-			//});
-
-			//Console.WriteLine($"texs {texture} {sharedTexture}");
-
-			browser = new ChromiumWebBrowser("https://www.google.com/", automaticallyCreateBrowser: false);
-
-			browser.RenderHandler = new TextureRenderHandler(browser, texture);
-
+			// Browser config
 			var windowInfo = new WindowInfo()
 			{
 				Width = width,
 				Height = height,
 			};
 			windowInfo.SetAsWindowless(IntPtr.Zero);
+
+			var browserSettings = new BrowserSettings()
+			{
+				WindowlessFrameRate = 60,
+			};
+
+			// Boot up the browser itself
+			// TODO: Proper resize handling, this is all hardcoded size shit
+			browser = new ChromiumWebBrowser("https://www.testufo.com/framerates#count=3&background=stars&pps=960", automaticallyCreateBrowser: false);
+			browser.RenderHandler = new TextureRenderHandler(browser, texture);
 			// WindowInfo gets ignored sometimes, be super sure:
 			browser.BrowserInitialized += (sender, args) => { browser.Size = new Size(width, height); };
-			// TODO: Proper resize handling, this is all hardcoded 640x480 shit
-
-			browser.CreateBrowser(windowInfo);
+			browser.CreateBrowser(windowInfo, browserSettings);
 
 			windowInfo.Dispose();
-
-			//browser.LoadingStateChanged += BrowserLoadingStateChanged;
 		}
 
 		[MethodImpl(MethodImplOptions.NoInlining)]
 		private static void DisposeCef()
 		{
 			Cef.Shutdown();
-		}
-
-		private static void BrowserLoadingStateChanged(object sender, LoadingStateChangedEventArgs args)
-		{
-			Console.WriteLine($"State change: {args.IsLoading}");
-
-			if (args.IsLoading) { return; }
-
-			//TODO: Use a proper render target thing (OnPaint?)
-			browser.ScreenshotAsync().ContinueWith(task =>
-			{
-				var bm = task.Result;
-				var resPtr = TestBuildTexture(bm);
-				producer.Write(new[] { resPtr });
-			});
-		}
-
-		private static IntPtr TestBuildTexture(Bitmap bitmap)
-		{
-			var bmRect = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
-			var data = bitmap.LockBits(bmRect, ImageLockMode.ReadOnly, PixelFormat.Format32bppPArgb);
-
-			var texDesc = new D3D11.Texture2DDescription()
-			{
-				Width = bitmap.Width,
-				Height = bitmap.Height,
-				MipLevels = 1,
-				ArraySize = 1,
-				Format = DXGI.Format.B8G8R8A8_UNorm,
-				SampleDescription = new DXGI.SampleDescription(1, 0),
-				Usage = D3D11.ResourceUsage.Default, // OG uses Immutable... we might need Dynamic?
-				BindFlags = D3D11.BindFlags.ShaderResource, // Might need render target?
-				CpuAccessFlags = D3D11.CpuAccessFlags.None, // Write?
-				// TODO: Look into getting SharedKeyedmutex working without a CTD from the plugin side.
-				OptionFlags = D3D11.ResourceOptionFlags.Shared,
-			};
-
-			// TODO: Need to ensure that our render device is on the same adapter as the primary game process.
-			// TODO: Store ref to the device. Creating a new one every time we gen tex is abysmal. Only okay atm because one tex.
-			// TODO: Probs ref the texture as well tbqh
-			var device = new D3D11.Device(D3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport);
-			var texture = new D3D11.Texture2D(device, texDesc, new DataRectangle(data.Scan0, data.Stride));
-			device.ImmediateContext.Flush();
-
-			IntPtr resPtr;
-			using (var resource = texture.QueryInterface<DXGI.Resource>())
-			{
-				resPtr = resource.SharedHandle;
-			}
-
-			bitmap.UnlockBits(data);
-
-			Console.WriteLine($"RESPTR: {resPtr}");
-			return resPtr;
 		}
 
 		private static Assembly CustomAssemblyResolver(object sender, ResolveEventArgs args)
