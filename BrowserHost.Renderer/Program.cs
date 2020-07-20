@@ -89,8 +89,71 @@ namespace BrowserHost.Renderer
 
 			Cef.Initialize(settings, performDependencyCheck: false, browserProcessHandler: null);
 
-			browser = new ChromiumWebBrowser("https://www.google.com/");
-			browser.LoadingStateChanged += BrowserLoadingStateChanged;
+			var width = 640;
+			var height = 480;
+
+			// Build the tex. holy dupes batman
+			// TODO: Need to ensure that our render device is on the same adapter as the primary game process.
+			// TODO: Store ref to the device. Creating a new one every time we gen tex is abysmal. Only okay atm because one tex.
+			// TODO: Probs ref the texture as well tbqh
+			var device = new D3D11.Device(D3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport | D3D11.DeviceCreationFlags.Debug);
+			var texture = new D3D11.Texture2D(device, new D3D11.Texture2DDescription()
+			{
+				Width = width,
+				Height = height,
+				MipLevels = 1,
+				ArraySize = 1,
+				Format = DXGI.Format.B8G8R8A8_UNorm,
+				SampleDescription = new DXGI.SampleDescription(1, 0),
+				Usage = D3D11.ResourceUsage.Default, // OG uses Immutable... we might need Dynamic?
+				BindFlags = D3D11.BindFlags.ShaderResource, // Might need render target?
+				CpuAccessFlags = D3D11.CpuAccessFlags.None,
+				// TODO: Look into getting SharedKeyedmutex working without a CTD from the plugin side.
+				OptionFlags = D3D11.ResourceOptionFlags.Shared,
+			});
+
+			IntPtr resPtr;
+			using (var resource = texture.QueryInterface<DXGI.Resource>())
+			{
+				resPtr = resource.SharedHandle;
+			}
+			producer.Write(new[] { resPtr });
+
+			// ew. dedupe and all that shitty jazz
+			//var sharedTexture = new D3D11.Texture2D(device, new D3D11.Texture2DDescription()
+			//{
+			//	Width = width,
+			//	Height = height,
+			//	MipLevels = 1,
+			//	ArraySize = 1,
+			//	Format = DXGI.Format.B8G8R8A8_UNorm,
+			//	SampleDescription = new DXGI.SampleDescription(1, 0),
+			//	Usage = D3D11.ResourceUsage.Staging,
+			//	CpuAccessFlags = D3D11.CpuAccessFlags.Write,
+			//	OptionFlags = D3D11.ResourceOptionFlags.None,
+			//});
+
+			//Console.WriteLine($"texs {texture} {sharedTexture}");
+
+			browser = new ChromiumWebBrowser("https://www.google.com/", automaticallyCreateBrowser: false);
+
+			browser.RenderHandler = new TextureRenderHandler(browser, texture);
+
+			var windowInfo = new WindowInfo()
+			{
+				Width = width,
+				Height = height,
+			};
+			windowInfo.SetAsWindowless(IntPtr.Zero);
+			// WindowInfo gets ignored sometimes, be super sure:
+			browser.BrowserInitialized += (sender, args) => { browser.Size = new Size(width, height); };
+			// TODO: Proper resize handling, this is all hardcoded 640x480 shit
+
+			browser.CreateBrowser(windowInfo);
+
+			windowInfo.Dispose();
+
+			//browser.LoadingStateChanged += BrowserLoadingStateChanged;
 		}
 
 		[MethodImpl(MethodImplOptions.NoInlining)]
@@ -139,6 +202,7 @@ namespace BrowserHost.Renderer
 			// TODO: Probs ref the texture as well tbqh
 			var device = new D3D11.Device(D3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport);
 			var texture = new D3D11.Texture2D(device, texDesc, new DataRectangle(data.Scan0, data.Stride));
+			device.ImmediateContext.Flush();
 
 			IntPtr resPtr;
 			using (var resource = texture.QueryInterface<DXGI.Resource>())

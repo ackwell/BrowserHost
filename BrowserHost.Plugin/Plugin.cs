@@ -42,6 +42,7 @@ namespace BrowserHost.Plugin
 			PluginLog.Log("Configuring render process.");
 
 			renderProcess = new RenderProcess(pid);
+			renderProcess.Start();
 
 			PluginLog.Log("Loaded.");
 		}
@@ -62,7 +63,6 @@ namespace BrowserHost.Plugin
 			var device = (D3D11.Device)typeof(RawDX11Scene).GetField("device", bindingFlags).GetValue(scene);
 
 			var texture = device.OpenSharedResource<D3D11.Texture2D>(resPtr);
-
 			var view = new D3D11.ShaderResourceView(device, texture, new D3D11.ShaderResourceViewDescription()
 			{
 				Format = texture.Description.Format,

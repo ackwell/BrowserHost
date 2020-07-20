@@ -11,6 +11,7 @@ namespace BrowserHost.Plugin
 	{
 		private int key;
 		private Process process;
+		private bool running;
 
 		public RenderProcess(int key)
 		{
@@ -34,15 +35,23 @@ namespace BrowserHost.Plugin
 
 			process.OutputDataReceived += (sender, args) => PluginLog.Log($"[Render]: {args.Data}");
 			process.ErrorDataReceived += (sender, args) => PluginLog.LogError($"[Render]: {args.Data}");
+		}
 
-			// Boot it up
+		public void Start()
+		{
+			if (running) { return; }
+			running = true;
+
 			process.Start();
 			process.BeginOutputReadLine();
 			process.BeginErrorReadLine();
 		}
 
-		public void Dispose()
+		public void Stop()
 		{
+			if (!running) { return; }
+			running = false;
+
 			// Grab the handle the process is waiting on and open it up
 			var handle = new EventWaitHandle(false, EventResetMode.ManualReset, $"BrowserHostRendererKeepAlive{key}");
 			handle.Set();
@@ -52,6 +61,12 @@ namespace BrowserHost.Plugin
 			process.WaitForExit(1000);
 			try { process.Kill(); }
 			catch (InvalidOperationException) { }
+		}
+
+		public void Dispose()
+		{
+			Stop();
+
 			process.Dispose();
 		}
 	}
