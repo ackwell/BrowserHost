@@ -3,6 +3,7 @@ using CefSharp.Enums;
 using CefSharp.OffScreen;
 using CefSharp.Structs;
 using D3D11 = SharpDX.Direct3D11;
+using DXGI = SharpDX.DXGI;
 using System;
 using SharpDX;
 
@@ -10,19 +11,47 @@ namespace BrowserHost.Renderer
 {
 	class TextureRenderHandler : IRenderHandler
 	{
-		private ChromiumWebBrowser browser;
 		private D3D11.Texture2D texture;
 
-		public TextureRenderHandler(ChromiumWebBrowser browser, D3D11.Texture2D texture)
+		private IntPtr sharedTextureHandle = IntPtr.Zero;
+		public IntPtr SharedTextureHandle { get
+			{
+				if (sharedTextureHandle == IntPtr.Zero)
+				{
+					using (var resource = texture.QueryInterface<DXGI.Resource>())
+					{
+						sharedTextureHandle = resource.SharedHandle;
+					}
+				}
+				return sharedTextureHandle;
+			}
+		}
+
+		public TextureRenderHandler(D3D11.Device device, int width, int height)
 		{
-			this.browser = browser;
-			this.texture = texture;
+			// Build texture. Most of these properties are defined to match how CEF exposes the render buffer.
+			texture = new D3D11.Texture2D(device, new D3D11.Texture2DDescription()
+			{
+				Width = width,
+				Height = height,
+				MipLevels = 1,
+				ArraySize = 1,
+				Format = DXGI.Format.B8G8R8A8_UNorm,
+				SampleDescription = new DXGI.SampleDescription(1, 0),
+				Usage = D3D11.ResourceUsage.Default,
+				BindFlags = D3D11.BindFlags.ShaderResource,
+				CpuAccessFlags = D3D11.CpuAccessFlags.None,
+				// TODO: Look into getting SharedKeyedmutex working without a CTD from the plugin side.
+				OptionFlags = D3D11.ResourceOptionFlags.Shared,
+			});
 		}
 
 		public void Dispose()
 		{
-			browser = null;
+			texture.Dispose();
 		}
+
+		# region IRenderHandler implementation
 
 		public ScreenInfo? GetScreenInfo()
 		{
@@ -41,9 +70,9 @@ namespace BrowserHost.Renderer
 
 		public Rect GetViewRect()
 		{
-			// TODO: Get rect from texture? How is resizing going to work?
-			var size = browser.Size;
-			return new Rect(0, 0, size.Width, size.Height);
+			// TODO: How is resizing going to work?
+			var texDesc = texture.Description;
+			return new Rect(0, 0, texDesc.Width, texDesc.Height);
 		}
 
 		public void OnPaint(PaintElementType type, Rect dirtyRect, IntPtr buffer, int width, int height)
@@ -103,5 +132,7 @@ namespace BrowserHost.Renderer
 		public void UpdateDragCursor(DragOperationsMask operation)
 		{
 		}
+
+		#endregion
 	}
 }

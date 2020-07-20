@@ -1,14 +1,11 @@
 ﻿using CefSharp;
 using CefSharp.OffScreen;
 using SharedMemory;
-using SharpDX;
 using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
-using DXGI = SharpDX.DXGI;
 using System;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -96,31 +93,13 @@ namespace BrowserHost.Renderer
 			// Build the texture
 			// TODO: Need to ensure that our render device is on the same adapter as the primary game process.
 			// TODO: Store ref to the device. Creating a new one every time we gen tex is abysmal. Only okay atm because one tex.
-			// TODO: Probs ref the texture as well tbqh
 			var device = new D3D11.Device(D3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport | D3D11.DeviceCreationFlags.Debug);
-			var texture = new D3D11.Texture2D(device, new D3D11.Texture2DDescription()
-			{
-				Width = width,
-				Height = height,
-				MipLevels = 1,
-				ArraySize = 1,
-				Format = DXGI.Format.B8G8R8A8_UNorm,
-				SampleDescription = new DXGI.SampleDescription(1, 0),
-				Usage = D3D11.ResourceUsage.Default,
-				BindFlags = D3D11.BindFlags.ShaderResource,
-				CpuAccessFlags = D3D11.CpuAccessFlags.None,
-				// TODO: Look into getting SharedKeyedmutex working without a CTD from the plugin side.
-				OptionFlags = D3D11.ResourceOptionFlags.Shared,
-			});
 
-			IntPtr resPtr;
-			using (var resource = texture.QueryInterface<DXGI.Resource>())
-			{
-				resPtr = resource.SharedHandle;
-			}
+			var renderHandler = new TextureRenderHandler(device, width, height);
 
 			// Pass texture over to plugin proc
-			producer.Write(new[] { resPtr });
+			Console.WriteLine($"Sending resource pointer {renderHandler.SharedTextureHandle}");
+			producer.Write(new[] { renderHandler.SharedTextureHandle });
 
 			// Browser config
 			var windowInfo = new WindowInfo()
@@ -138,7 +117,7 @@ namespace BrowserHost.Renderer
 			// Boot up the browser itself
 			// TODO: Proper resize handling, this is all hardcoded size shit
 			browser = new ChromiumWebBrowser("https://www.testufo.com/framerates#count=3&background=stars&pps=960", automaticallyCreateBrowser: false);
-			browser.RenderHandler = new TextureRenderHandler(browser, texture);
+			browser.RenderHandler = renderHandler;
 			// WindowInfo gets ignored sometimes, be super sure:
 			browser.BrowserInitialized += (sender, args) => { browser.Size = new Size(width, height); };
 			browser.CreateBrowser(windowInfo, browserSettings);
