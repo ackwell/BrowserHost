@@ -19,6 +19,8 @@ namespace BrowserHost.Renderer
 			AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
 			Environment.Is64BitProcess ? "x64" : "x86");
 
+		private static D3D11.Device device;
+
 		private static ChromiumWebBrowser browser;
 
 		private static CircularBuffer producer;
@@ -29,19 +31,34 @@ namespace BrowserHost.Renderer
 		static void Main(string[] args)
 		{
 			Console.WriteLine("Render process running.");
+			AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
+			// Argument parsing
 			var parentPid = int.Parse(args[0]);
 
+			Run(parentPid);
+		}
+
+		// Main process logic. Seperated to ensure assembly resolution is configured.
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		private static void Run(int parentPid)
+		{
 			waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, $"BrowserHostRendererKeepAlive{parentPid}");
 
 			// Boot up a thread to make sure we shut down if parent dies
 			parentWatchThread = new Thread(WatchParentStatus);
-			parentWatchThread.Start(int.Parse(args[0]));
+			parentWatchThread.Start(parentPid);
+
+			// TODO: Need to ensure that our render device is on the same adapter as the primary game process.
+			// TODO: Debug in debug mode only
+			var deviceCreationFlags = D3D11.DeviceCreationFlags.BgraSupport;
+#if DEBUG
+			deviceCreationFlags |= D3D11.DeviceCreationFlags.Debug;
+#endif
+			device = new D3D11.Device(D3D.DriverType.Hardware, deviceCreationFlags);
 
 			// We don't specify size, consumer will create the initial buffer.
 			producer = new CircularBuffer($"DalamudBrowserHostFrameBuffer{parentPid}");
-
-			AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
 #if DEBUG
 			AppDomain.CurrentDomain.FirstChanceException += (obj, e) => Console.Error.WriteLine(e.Exception.ToString());
@@ -60,6 +77,8 @@ namespace BrowserHost.Renderer
 
 			producer.Dispose();
 
+			device.Dispose();
+
 			parentWatchThread.Abort();
 		}
 
@@ -76,7 +95,6 @@ namespace BrowserHost.Renderer
 			catch (InvalidOperationException) { }
 		}
 
-		[MethodImpl(MethodImplOptions.NoInlining)]
 		private static void InitialiseCef()
 		{
 			var settings = new CefSettings()
@@ -90,14 +108,8 @@ namespace BrowserHost.Renderer
 			var width = 800;
 			var height = 800;
 
-			// Build the texture
-			// TODO: Need to ensure that our render device is on the same adapter as the primary game process.
-			// TODO: Store ref to the device. Creating a new one every time we gen tex is abysmal. Only okay atm because one tex.
-			var device = new D3D11.Device(D3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport | D3D11.DeviceCreationFlags.Debug);
-
+			// Build the texture & pass over to plugin process
 			var renderHandler = new TextureRenderHandler(device, width, height);
-
-			// Pass texture over to plugin proc
 			Console.WriteLine($"Sending resource pointer {renderHandler.SharedTextureHandle}");
 			producer.Write(new[] { renderHandler.SharedTextureHandle });
 
@@ -122,10 +134,10 @@ namespace BrowserHost.Renderer
 			browser.BrowserInitialized += (sender, args) => { browser.Size = new Size(width, height); };
 			browser.CreateBrowser(windowInfo, browserSettings);
 
+			browserSettings.Dispose();
 			windowInfo.Dispose();
 		}
 
-		[MethodImpl(MethodImplOptions.NoInlining)]
 		private static void DisposeCef()
 		{
 			Cef.Shutdown();
