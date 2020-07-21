@@ -1,8 +1,6 @@
 ﻿using CefSharp;
 using CefSharp.OffScreen;
 using SharedMemory;
-using D3D = SharpDX.Direct3D;
-using D3D11 = SharpDX.Direct3D11;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -18,8 +16,6 @@ namespace BrowserHost.Renderer
 		private static string cefAssemblyPath => Path.Combine(
 			AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
 			Environment.Is64BitProcess ? "x64" : "x86");
-
-		private static D3D11.Device device;
 
 		private static ChromiumWebBrowser browser;
 
@@ -49,14 +45,6 @@ namespace BrowserHost.Renderer
 			parentWatchThread = new Thread(WatchParentStatus);
 			parentWatchThread.Start(parentPid);
 
-			// TODO: Need to ensure that our render device is on the same adapter as the primary game process.
-			// TODO: Debug in debug mode only
-			var deviceCreationFlags = D3D11.DeviceCreationFlags.BgraSupport;
-#if DEBUG
-			deviceCreationFlags |= D3D11.DeviceCreationFlags.Debug;
-#endif
-			device = new D3D11.Device(D3D.DriverType.Hardware, deviceCreationFlags);
-
 			// We don't specify size, consumer will create the initial buffer.
 			producer = new CircularBuffer($"DalamudBrowserHostFrameBuffer{parentPid}");
 
@@ -64,7 +52,10 @@ namespace BrowserHost.Renderer
 			AppDomain.CurrentDomain.FirstChanceException += (obj, e) => Console.Error.WriteLine(e.Exception.ToString());
 #endif
 
-			InitialiseCef();
+			DxHandler.Initialise();
+			CefHandler.Initialise(cefAssemblyPath);
+
+			BuildInlay();
 
 			Console.WriteLine("Waiting...");
 
@@ -73,11 +64,10 @@ namespace BrowserHost.Renderer
 
 			Console.WriteLine("Render process shutting down.");
 
-			DisposeCef();
+			DxHandler.Shutdown();
+			CefHandler.Shutdown();
 
 			producer.Dispose();
-
-			device.Dispose();
 
 			parentWatchThread.Abort();
 		}
@@ -95,21 +85,13 @@ namespace BrowserHost.Renderer
 			catch (InvalidOperationException) { }
 		}
 
-		private static void InitialiseCef()
+		private static void BuildInlay()
 		{
-			var settings = new CefSettings()
-			{
-				BrowserSubprocessPath = Path.Combine(cefAssemblyPath, "CefSharp.BrowserSubprocess.exe"),
-			};
-			settings.CefCommandLineArgs["autoplay-policy"] = "no-user-gesture-required";
-
-			Cef.Initialize(settings, performDependencyCheck: false, browserProcessHandler: null);
-
 			var width = 800;
 			var height = 800;
 
 			// Build the texture & pass over to plugin process
-			var renderHandler = new TextureRenderHandler(device, width, height);
+			var renderHandler = new TextureRenderHandler(DxHandler.Device, width, height);
 			Console.WriteLine($"Sending resource pointer {renderHandler.SharedTextureHandle}");
 			producer.Write(new[] { renderHandler.SharedTextureHandle });
 
@@ -136,11 +118,6 @@ namespace BrowserHost.Renderer
 
 			browserSettings.Dispose();
 			windowInfo.Dispose();
-		}
-
-		private static void DisposeCef()
-		{
-			Cef.Shutdown();
 		}
 
 		private static Assembly CustomAssemblyResolver(object sender, ResolveEventArgs args)
