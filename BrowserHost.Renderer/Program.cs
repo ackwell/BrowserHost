@@ -1,4 +1,5 @@
-﻿using CefSharp;
+﻿using BrowserHost.Common;
+using CefSharp;
 using CefSharp.OffScreen;
 using SharedMemory;
 using System;
@@ -13,9 +14,8 @@ namespace BrowserHost.Renderer
 {
 	class Program
 	{
-		private static string cefAssemblyPath => Path.Combine(
-			AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
-			Environment.Is64BitProcess ? "x64" : "x86");
+		private static string cefAssemblyDir;
+		private static string dalamudAssemblyDir;
 
 		private static ChromiumWebBrowser browser;
 
@@ -24,15 +24,17 @@ namespace BrowserHost.Renderer
 		private static Thread parentWatchThread;
 		private static EventWaitHandle waitHandle;
 
-		static void Main(string[] args)
+		static void Main(string[] rawArgs)
 		{
 			Console.WriteLine("Render process running.");
 			AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
 			// Argument parsing
-			var parentPid = int.Parse(args[0]);
+			var args = RenderProcessArgs.Deserialise(rawArgs[0]);
+			cefAssemblyDir = args.CefAssemblyDir;
+			dalamudAssemblyDir = args.DalamudAssemblyDir;
 
-			Run(parentPid);
+			Run(args.ParentPid);
 		}
 
 		// Main process logic. Seperated to ensure assembly resolution is configured.
@@ -53,7 +55,7 @@ namespace BrowserHost.Renderer
 #endif
 
 			DxHandler.Initialise();
-			CefHandler.Initialise(cefAssemblyPath);
+			CefHandler.Initialise(cefAssemblyDir);
 
 			BuildInlay();
 
@@ -127,15 +129,11 @@ namespace BrowserHost.Renderer
 			string assemblyPath = null;
 			if (assemblyName.StartsWith("CefSharp"))
 			{
-				assemblyPath = Path.Combine(cefAssemblyPath, assemblyName);
+				assemblyPath = Path.Combine(cefAssemblyDir, assemblyName);
 			}
 			else if (assemblyName.StartsWith("SharpDX"))
 			{
-				// TODO: Obtain this path sanely, probably pass down dalamud dir from parent proc
-				assemblyPath = Path.Combine(
-					AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
-					"..", "..", "addon", "Hooks",
-					assemblyName);
+				assemblyPath = Path.Combine(dalamudAssemblyDir, assemblyName);
 			}
 
 			if (assemblyPath == null) { return null; }

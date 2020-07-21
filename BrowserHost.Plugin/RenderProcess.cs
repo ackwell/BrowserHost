@@ -1,4 +1,5 @@
-﻿using Dalamud.Plugin;
+﻿using BrowserHost.Common;
+using Dalamud.Plugin;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -9,24 +10,30 @@ namespace BrowserHost.Plugin
 {
 	class RenderProcess : IDisposable
 	{
-		private int key;
+		private int pid;
 		private Process process;
 		private bool running;
 
-		public RenderProcess(int key)
+		public RenderProcess(int pid)
 		{
-			this.key = key;
+			this.pid = pid;
 
-			// Configure the subprocess
-			var rendererPath = Path.Combine(
-				Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-				"BrowserHost.Renderer.exe");
+			var pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+			// TODO: Put cef in a cef-specific subdir
+			// TODO: Download cef on first boot etc
+			var processArgs = new RenderProcessArgs()
+			{
+				ParentPid = pid,
+				DalamudAssemblyDir = AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
+				CefAssemblyDir = Path.Combine(pluginDir, Environment.Is64BitProcess ? "x64" : "x86")
+			};
 
 			process = new Process();
 			process.StartInfo = new ProcessStartInfo()
 			{
-				FileName = rendererPath,
-				Arguments = $"{key}",
+				FileName = Path.Combine(pluginDir, "BrowserHost.Renderer.exe"),
+				Arguments = processArgs.Serialise().Replace("\"", "\"\"\""),
 				UseShellExecute = false,
 				CreateNoWindow = true,
 				RedirectStandardOutput = true,
@@ -53,7 +60,7 @@ namespace BrowserHost.Plugin
 			running = false;
 
 			// Grab the handle the process is waiting on and open it up
-			var handle = new EventWaitHandle(false, EventResetMode.ManualReset, $"BrowserHostRendererKeepAlive{key}");
+			var handle = new EventWaitHandle(false, EventResetMode.ManualReset, $"BrowserHostRendererKeepAlive{pid}");
 			handle.Set();
 			handle.Dispose();
 

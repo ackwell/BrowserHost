@@ -4,7 +4,7 @@ using System.IO;
 
 namespace BrowserHost.Renderer
 {
-	class CefHandler
+	static class CefHandler
 	{
 		public static void Initialise(string cefAssemblyPath)
 		{
