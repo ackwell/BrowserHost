@@ -2,10 +2,10 @@
 using CefSharp.Enums;
 using CefSharp.OffScreen;
 using CefSharp.Structs;
+using SharpDX;
 using D3D11 = SharpDX.Direct3D11;
 using DXGI = SharpDX.DXGI;
 using System;
-using SharpDX;
 
 namespace BrowserHost.Renderer
 {
@@ -14,7 +14,8 @@ namespace BrowserHost.Renderer
 		private D3D11.Texture2D texture;
 
 		private IntPtr sharedTextureHandle = IntPtr.Zero;
-		public IntPtr SharedTextureHandle { get
+		public IntPtr SharedTextureHandle {
+			get
 			{
 				if (sharedTextureHandle == IntPtr.Zero)
 				{
@@ -27,13 +28,13 @@ namespace BrowserHost.Renderer
 			}
 		}
 
-		public TextureRenderHandler(D3D11.Device device, int width, int height)
+		public TextureRenderHandler(D3D11.Device device, System.Drawing.Size size)
 		{
 			// Build texture. Most of these properties are defined to match how CEF exposes the render buffer.
 			texture = new D3D11.Texture2D(device, new D3D11.Texture2DDescription()
 			{
-				Width = width,
-				Height = height,
+				Width = size.Width,
+				Height = size.Height,
 				MipLevels = 1,
 				ArraySize = 1,
 				Format = DXGI.Format.B8G8R8A8_UNorm,

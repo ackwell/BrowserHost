@@ -17,8 +17,6 @@ namespace BrowserHost.Renderer
 		private static string cefAssemblyDir;
 		private static string dalamudAssemblyDir;
 
-		private static ChromiumWebBrowser browser;
-
 		private static CircularBuffer producer;
 
 		private static Thread parentWatchThread;
@@ -89,37 +87,14 @@ namespace BrowserHost.Renderer
 
 		private static void BuildInlay()
 		{
-			var width = 800;
-			var height = 800;
+			var inlay = new Inlay(
+				"https://www.testufo.com/framerates#count=3&background=stars&pps=960",
+				new Size(800, 800)
+			);
+			inlay.Initialise();
 
 			// Build the texture & pass over to plugin process
-			var renderHandler = new TextureRenderHandler(DxHandler.Device, width, height);
-			Console.WriteLine($"Sending resource pointer {renderHandler.SharedTextureHandle}");
-			producer.Write(new[] { renderHandler.SharedTextureHandle });
-
-			// Browser config
-			var windowInfo = new WindowInfo()
-			{
-				Width = width,
-				Height = height,
-			};
-			windowInfo.SetAsWindowless(IntPtr.Zero);
-
-			var browserSettings = new BrowserSettings()
-			{
-				WindowlessFrameRate = 60,
-			};
-
-			// Boot up the browser itself
-			// TODO: Proper resize handling, this is all hardcoded size shit
-			browser = new ChromiumWebBrowser("https://www.testufo.com/framerates#count=3&background=stars&pps=960", automaticallyCreateBrowser: false);
-			browser.RenderHandler = renderHandler;
-			// WindowInfo gets ignored sometimes, be super sure:
-			browser.BrowserInitialized += (sender, args) => { browser.Size = new Size(width, height); };
-			browser.CreateBrowser(windowInfo, browserSettings);
-
-			browserSettings.Dispose();
-			windowInfo.Dispose();
+			producer.Write(new[] { inlay.SharedTextureHandle });
 		}
 
 		private static Assembly CustomAssemblyResolver(object sender, ResolveEventArgs args)
