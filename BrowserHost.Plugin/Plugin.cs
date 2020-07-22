@@ -3,16 +3,12 @@ using Dalamud.Interface;
 using Dalamud.Plugin;
 using ImGuiNET;
 using ImGuiScene;
-using SharedMemory;
 using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
-using System;
 using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using System.Threading;
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 
 namespace BrowserHost.Plugin
 {
@@ -48,28 +44,12 @@ namespace BrowserHost.Plugin
 
 		private void ThreadProc()
 		{
-			// Temp ipc req impl
-			byte[] request;
-			var formatter = new BinaryFormatter();
-			using (MemoryStream stream = new MemoryStream())
+			var response = renderProcess.Send<NewInlayResponse>(new NewInlayRequest()
 			{
-				formatter.Serialize(stream, new NewInlayRequest()
-				{
-					Url = "https://www.testufo.com/framerates#count=3&background=stars&pps=960",
-					Width = 800,
-					Height = 800,
-				});
-				request = stream.ToArray();
-			}
-
-			var rawResponse = renderProcess.Ipc.RemoteRequest(request, timeoutMs: Timeout.Infinite);
-			PluginLog.Log($"success: rawResponse.Success");
-
-			NewInlayResponse response;
-			using (MemoryStream stream = new MemoryStream(rawResponse.Data))
-			{
-				response = (NewInlayResponse)formatter.Deserialize(stream);
-			}
+				Url = "https://www.testufo.com/framerates#count=3&background=stars&pps=960",
+				Width = 800,
+				Height = 800,
+			});
 
 			var resPtr = response.TextureHandle;
 

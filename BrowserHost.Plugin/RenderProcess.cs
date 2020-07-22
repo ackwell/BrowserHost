@@ -5,15 +5,15 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 
 namespace BrowserHost.Plugin
 {
 	class RenderProcess : IDisposable
 	{
-		public RpcBuffer Ipc;
-
 		private Process process;
+		private RpcBuffer ipc;
 		private bool running;
 
 		private string keepAliveHandleName;
@@ -24,7 +24,7 @@ namespace BrowserHost.Plugin
 			keepAliveHandleName = $"BrowserHostRendererKeepAlive{pid}";
 			ipcChannelName = $"BrowserHostRendererIpcChannel{pid}";
 
-			Ipc = new RpcBuffer(ipcChannelName);
+			ipc = new RpcBuffer(ipcChannelName);
 
 			var pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
@@ -64,6 +64,34 @@ namespace BrowserHost.Plugin
 			process.BeginErrorReadLine();
 		}
 
+		// TODO: Option to wrap this func in an async version
+		// TODO: maybe a void response overload?
+		public Response Send<Response>(IpcRequest request)
+		{
+			var formatter = new BinaryFormatter();
+
+			// Encode request
+			byte[] rawRequest;
+			using (MemoryStream stream = new MemoryStream())
+			{
+				formatter.Serialize(stream, request);
+				rawRequest = stream.ToArray();
+			}
+
+			// Send
+			var rawResponse = ipc.RemoteRequest(rawRequest, timeoutMs: Timeout.Infinite);
+			// TODO: Error check
+
+			// Decode response
+			Response response;
+			using (MemoryStream stream = new MemoryStream(rawResponse.Data))
+			{
+				response = (Response)formatter.Deserialize(stream);
+			}
+
+			return response;
+		}
+
 		public void Stop()
 		{
 			if (!running) { return; }
@@ -85,7 +113,7 @@ namespace BrowserHost.Plugin
 			Stop();
 
 			process.Dispose();
-			Ipc.Dispose();
+			ipc.Dispose();
 		}
 	}
 }
