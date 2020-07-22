@@ -1,6 +1,4 @@
 ﻿using BrowserHost.Common;
-using CefSharp;
-using CefSharp.OffScreen;
 using SharedMemory;
 using System;
 using System.Diagnostics;
@@ -8,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 
 namespace BrowserHost.Renderer
@@ -28,7 +27,7 @@ namespace BrowserHost.Renderer
 			AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
 			// Argument parsing
-			var args = RenderProcessArgs.Deserialise(rawArgs[0]);
+			var args = RenderProcessArguments.Deserialise(rawArgs[0]);
 			cefAssemblyDir = args.CefAssemblyDir;
 			dalamudAssemblyDir = args.DalamudAssemblyDir;
 
@@ -55,6 +54,8 @@ namespace BrowserHost.Renderer
 			DxHandler.Initialise();
 			CefHandler.Initialise(cefAssemblyDir);
 
+			var ipcBuffer = new RpcBuffer($"BrowserHostRendererIpcChannel{parentPid}", IpcCallback);
+
 			BuildInlay();
 
 			Console.WriteLine("Waiting...");
@@ -63,6 +64,8 @@ namespace BrowserHost.Renderer
 			waitHandle.Dispose();
 
 			Console.WriteLine("Render process shutting down.");
+
+			ipcBuffer.Dispose();
 
 			DxHandler.Shutdown();
 			CefHandler.Shutdown();
@@ -83,6 +86,38 @@ namespace BrowserHost.Renderer
 			self.WaitForExit(1000);
 			try { self.Kill(); }
 			catch (InvalidOperationException) { }
+		}
+
+		private static byte[] IpcCallback(ulong messageId, byte[] requestData)
+		{
+			var formatter = new BinaryFormatter();
+			IpcRequest request;
+			using (MemoryStream stream = new MemoryStream(requestData))
+			{
+				request = (IpcRequest)formatter.Deserialize(stream);
+			}
+
+			var response = HandleIpcRequest(request);
+
+			byte[] rawResponse;
+			using (MemoryStream stream = new MemoryStream())
+			{
+				formatter.Serialize(stream, response);
+				rawResponse = stream.ToArray();
+			}
+			return rawResponse;
+		}
+
+		private static object HandleIpcRequest(IpcRequest request)
+		{
+			switch (request)
+			{
+				case NewInlayRequest newInlayRequest:
+					Console.WriteLine($"GOT W{newInlayRequest.Width} H{newInlayRequest.Height}");
+					return new NewInlayResponse() { TextureHandle = (IntPtr)42069 };
+				default:
+					throw new Exception("Unknown IPC request type received.");
+			}
 		}
 
 		private static void BuildInlay()

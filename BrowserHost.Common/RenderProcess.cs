@@ -1,0 +1,35 @@
+﻿using System;
+
+namespace BrowserHost.Common
+{
+	public class RenderProcessArguments
+	{
+		public int ParentPid;
+		public string CefAssemblyDir;
+		public string DalamudAssemblyDir;
+
+		public string Serialise()
+		{
+			return TinyJson.JSONWriter.ToJson(this);
+		}
+
+		public static RenderProcessArguments Deserialise(string serialisedArgs)
+		{
+			return TinyJson.JSONParser.FromJson<RenderProcessArguments>(serialisedArgs);
+		}
+	}
+
+	[Serializable]
+	public class IpcRequest { }
+
+	[Serializable]
+	public class NewInlayRequest : IpcRequest {
+		public int Width;
+		public int Height;
+	}
+
+	[Serializable]
+	public class NewInlayResponse {
+		public IntPtr TextureHandle;
+	}
+}

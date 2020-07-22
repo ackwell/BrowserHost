@@ -1,4 +1,5 @@
-﻿using Dalamud.Interface;
+﻿using BrowserHost.Common;
+using Dalamud.Interface;
 using Dalamud.Plugin;
 using ImGuiNET;
 using ImGuiScene;
@@ -10,6 +11,8 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using System.Threading;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace BrowserHost.Plugin
 {
@@ -22,6 +25,7 @@ namespace BrowserHost.Plugin
 		private RenderProcess renderProcess;
 
 		private CircularBuffer consumer;
+		private RpcBuffer rendererIpc;
 
 		private Thread thread;
 
@@ -35,6 +39,7 @@ namespace BrowserHost.Plugin
 			var pid = Process.GetCurrentProcess().Id;
 
 			consumer = new CircularBuffer($"DalamudBrowserHostFrameBuffer{pid}", nodeCount: 5, nodeBufferSize: 1024 * 1024 * 10 /* 10M */);
+			rendererIpc = new RpcBuffer($"BrowserHostRendererIpcChannel{pid}");
 
 			thread = new Thread(ThreadProc);
 			thread.Start();
@@ -49,6 +54,30 @@ namespace BrowserHost.Plugin
 
 		private void ThreadProc()
 		{
+			// TESTING STUFF
+			byte[] request;
+			var formatter = new BinaryFormatter();
+			using (MemoryStream stream = new MemoryStream())
+			{
+				formatter.Serialize(stream, new NewInlayRequest()
+				{
+					Width = 420,
+					Height = 69,
+				});
+				request = stream.ToArray();
+			}
+
+			var rawResponse = rendererIpc.RemoteRequest(request, timeoutMs: Timeout.Infinite);
+			PluginLog.Log($"success: rawResponse.Success");
+
+			NewInlayResponse response;
+			using (MemoryStream stream = new MemoryStream(rawResponse.Data))
+			{
+				response = (NewInlayResponse)formatter.Deserialize(stream);
+			}
+
+			PluginLog.Log($"Got response {response.TextureHandle}");
+
 			// First value is IntPtr to a DXGI shared resource
 			var resPtrData = new IntPtr[1];
 			consumer.Read(resPtrData, timeout: Timeout.Infinite);

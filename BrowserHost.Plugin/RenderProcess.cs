@@ -22,7 +22,7 @@ namespace BrowserHost.Plugin
 
 			// TODO: Put cef in a cef-specific subdir
 			// TODO: Download cef on first boot etc
-			var processArgs = new RenderProcessArgs()
+			var processArgs = new RenderProcessArguments()
 			{
 				ParentPid = pid,
 				DalamudAssemblyDir = AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
