@@ -24,8 +24,6 @@ namespace BrowserHost.Plugin
 
 		private RenderProcess renderProcess;
 
-		private RpcBuffer rendererIpc;
-
 		private Thread thread;
 
 		private TextureWrap sharedTextureWrap;
@@ -37,15 +35,13 @@ namespace BrowserHost.Plugin
 
 			var pid = Process.GetCurrentProcess().Id;
 
-			rendererIpc = new RpcBuffer($"BrowserHostRendererIpcChannel{pid}");
-
-			thread = new Thread(ThreadProc);
-			thread.Start();
-
 			PluginLog.Log("Configuring render process.");
 
 			renderProcess = new RenderProcess(pid);
 			renderProcess.Start();
+
+			thread = new Thread(ThreadProc);
+			thread.Start();
 
 			PluginLog.Log("Loaded.");
 		}
@@ -66,7 +62,7 @@ namespace BrowserHost.Plugin
 				request = stream.ToArray();
 			}
 
-			var rawResponse = rendererIpc.RemoteRequest(request, timeoutMs: Timeout.Infinite);
+			var rawResponse = renderProcess.Ipc.RemoteRequest(request, timeoutMs: Timeout.Infinite);
 			PluginLog.Log($"success: rawResponse.Success");
 
 			NewInlayResponse response;

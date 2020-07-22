@@ -1,5 +1,6 @@
 ﻿using BrowserHost.Common;
 using Dalamud.Plugin;
+using SharedMemory;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -10,13 +11,20 @@ namespace BrowserHost.Plugin
 {
 	class RenderProcess : IDisposable
 	{
-		private int pid;
+		public RpcBuffer Ipc;
+
 		private Process process;
 		private bool running;
 
+		private string keepAliveHandleName;
+		private string ipcChannelName;
+
 		public RenderProcess(int pid)
 		{
-			this.pid = pid;
+			keepAliveHandleName = $"BrowserHostRendererKeepAlive{pid}";
+			ipcChannelName = $"BrowserHostRendererIpcChannel{pid}";
+
+			Ipc = new RpcBuffer(ipcChannelName);
 
 			var pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
@@ -26,7 +34,9 @@ namespace BrowserHost.Plugin
 			{
 				ParentPid = pid,
 				DalamudAssemblyDir = AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
-				CefAssemblyDir = Path.Combine(pluginDir, Environment.Is64BitProcess ? "x64" : "x86")
+				CefAssemblyDir = Path.Combine(pluginDir, Environment.Is64BitProcess ? "x64" : "x86"),
+				KeepAliveHandleName = keepAliveHandleName,
+				IpcChannelName = ipcChannelName,
 			};
 
 			process = new Process();
@@ -60,7 +70,7 @@ namespace BrowserHost.Plugin
 			running = false;
 
 			// Grab the handle the process is waiting on and open it up
-			var handle = new EventWaitHandle(false, EventResetMode.ManualReset, $"BrowserHostRendererKeepAlive{pid}");
+			var handle = new EventWaitHandle(false, EventResetMode.ManualReset, keepAliveHandleName);
 			handle.Set();
 			handle.Dispose();
 
@@ -75,6 +85,7 @@ namespace BrowserHost.Plugin
 			Stop();
 
 			process.Dispose();
+			Ipc.Dispose();
 		}
 	}
 }

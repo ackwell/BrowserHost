@@ -24,23 +24,21 @@ namespace BrowserHost.Renderer
 			Console.WriteLine("Render process running.");
 			AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
-			// Argument parsing
-			var args = RenderProcessArguments.Deserialise(rawArgs[0]);
-			cefAssemblyDir = args.CefAssemblyDir;
-			dalamudAssemblyDir = args.DalamudAssemblyDir;
-
-			Run(args.ParentPid);
+			Run(RenderProcessArguments.Deserialise(rawArgs[0]));
 		}
 
 		// Main process logic. Seperated to ensure assembly resolution is configured.
 		[MethodImpl(MethodImplOptions.NoInlining)]
-		private static void Run(int parentPid)
+		private static void Run(RenderProcessArguments args)
 		{
-			waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, $"BrowserHostRendererKeepAlive{parentPid}");
+			cefAssemblyDir = args.CefAssemblyDir;
+			dalamudAssemblyDir = args.DalamudAssemblyDir;
+
+			waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, args.KeepAliveHandleName);
 
 			// Boot up a thread to make sure we shut down if parent dies
 			parentWatchThread = new Thread(WatchParentStatus);
-			parentWatchThread.Start(parentPid);
+			parentWatchThread.Start(args.ParentPid);
 
 #if DEBUG
 			AppDomain.CurrentDomain.FirstChanceException += (obj, e) => Console.Error.WriteLine(e.Exception.ToString());
@@ -49,7 +47,7 @@ namespace BrowserHost.Renderer
 			DxHandler.Initialise();
 			CefHandler.Initialise(cefAssemblyDir);
 
-			var ipcBuffer = new RpcBuffer($"BrowserHostRendererIpcChannel{parentPid}", IpcCallback);
+			var ipcBuffer = new RpcBuffer(args.IpcChannelName, IpcCallback);
 
 			Console.WriteLine("Waiting...");
 
