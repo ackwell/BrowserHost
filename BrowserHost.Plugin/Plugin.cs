@@ -24,7 +24,6 @@ namespace BrowserHost.Plugin
 
 		private RenderProcess renderProcess;
 
-		private CircularBuffer consumer;
 		private RpcBuffer rendererIpc;
 
 		private Thread thread;
@@ -38,7 +37,6 @@ namespace BrowserHost.Plugin
 
 			var pid = Process.GetCurrentProcess().Id;
 
-			consumer = new CircularBuffer($"DalamudBrowserHostFrameBuffer{pid}", nodeCount: 5, nodeBufferSize: 1024 * 1024 * 10 /* 10M */);
 			rendererIpc = new RpcBuffer($"BrowserHostRendererIpcChannel{pid}");
 
 			thread = new Thread(ThreadProc);
@@ -54,15 +52,16 @@ namespace BrowserHost.Plugin
 
 		private void ThreadProc()
 		{
-			// TESTING STUFF
+			// Temp ipc req impl
 			byte[] request;
 			var formatter = new BinaryFormatter();
 			using (MemoryStream stream = new MemoryStream())
 			{
 				formatter.Serialize(stream, new NewInlayRequest()
 				{
-					Width = 420,
-					Height = 69,
+					Url = "https://www.testufo.com/framerates#count=3&background=stars&pps=960",
+					Width = 800,
+					Height = 800,
 				});
 				request = stream.ToArray();
 			}
@@ -76,12 +75,7 @@ namespace BrowserHost.Plugin
 				response = (NewInlayResponse)formatter.Deserialize(stream);
 			}
 
-			PluginLog.Log($"Got response {response.TextureHandle}");
-
-			// First value is IntPtr to a DXGI shared resource
-			var resPtrData = new IntPtr[1];
-			consumer.Read(resPtrData, timeout: Timeout.Infinite);
-			var resPtr = resPtrData[0];
+			var resPtr = response.TextureHandle;
 
 			PluginLog.Log($"Incoming resource pointer {resPtr}");
 
@@ -123,8 +117,6 @@ namespace BrowserHost.Plugin
 			renderProcess.Dispose();
 
 			thread.Join();
-
-			consumer.Dispose();
 
 			pluginInterface.Dispose();
 		}

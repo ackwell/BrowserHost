@@ -24,6 +24,7 @@ namespace BrowserHost.Common
 
 	[Serializable]
 	public class NewInlayRequest : IpcRequest {
+		public string Url;
 		public int Width;
 		public int Height;
 	}

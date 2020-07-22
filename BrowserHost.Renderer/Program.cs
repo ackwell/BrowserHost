@@ -16,8 +16,6 @@ namespace BrowserHost.Renderer
 		private static string cefAssemblyDir;
 		private static string dalamudAssemblyDir;
 
-		private static CircularBuffer producer;
-
 		private static Thread parentWatchThread;
 		private static EventWaitHandle waitHandle;
 
@@ -44,9 +42,6 @@ namespace BrowserHost.Renderer
 			parentWatchThread = new Thread(WatchParentStatus);
 			parentWatchThread.Start(parentPid);
 
-			// We don't specify size, consumer will create the initial buffer.
-			producer = new CircularBuffer($"DalamudBrowserHostFrameBuffer{parentPid}");
-
 #if DEBUG
 			AppDomain.CurrentDomain.FirstChanceException += (obj, e) => Console.Error.WriteLine(e.Exception.ToString());
 #endif
@@ -55,8 +50,6 @@ namespace BrowserHost.Renderer
 			CefHandler.Initialise(cefAssemblyDir);
 
 			var ipcBuffer = new RpcBuffer($"BrowserHostRendererIpcChannel{parentPid}", IpcCallback);
-
-			BuildInlay();
 
 			Console.WriteLine("Waiting...");
 
@@ -69,8 +62,6 @@ namespace BrowserHost.Renderer
 
 			DxHandler.Shutdown();
 			CefHandler.Shutdown();
-
-			producer.Dispose();
 
 			parentWatchThread.Abort();
 		}
@@ -113,23 +104,13 @@ namespace BrowserHost.Renderer
 			switch (request)
 			{
 				case NewInlayRequest newInlayRequest:
-					Console.WriteLine($"GOT W{newInlayRequest.Width} H{newInlayRequest.Height}");
-					return new NewInlayResponse() { TextureHandle = (IntPtr)42069 };
+					// TODO: Need to track inlays. Map<Guid, Inlay>?
+					var inlay = new Inlay(newInlayRequest.Url, new Size(newInlayRequest.Width, newInlayRequest.Height));
+					inlay.Initialise();
+					return new NewInlayResponse() { TextureHandle = inlay.SharedTextureHandle };
 				default:
 					throw new Exception("Unknown IPC request type received.");
 			}
-		}
-
-		private static void BuildInlay()
-		{
-			var inlay = new Inlay(
-				"https://www.testufo.com/framerates#count=3&background=stars&pps=960",
-				new Size(800, 800)
-			);
-			inlay.Initialise();
-
-			// Build the texture & pass over to plugin process
-			producer.Write(new[] { inlay.SharedTextureHandle });
 		}
 
 		private static Assembly CustomAssemblyResolver(object sender, ResolveEventArgs args)
