@@ -124,8 +124,6 @@ namespace BrowserHost.Renderer
 
 		public void OnCursorChange(IntPtr cursorPtr, CursorType type, CursorInfo customCursorInfo)
 		{
-			Console.WriteLine($"CefCursor: {type}");
-
 			// TODO: Map properly
 			// CEF calls default "pointer", and pointer "hand". Derp.
 			var cursor = type == CursorType.Hand ? Cursor.Pointer : Cursor.Default;

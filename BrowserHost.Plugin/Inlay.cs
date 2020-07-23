@@ -20,6 +20,8 @@ namespace BrowserHost.Plugin
 		private RenderProcess renderProcess;
 		private TextureWrap textureWrap;
 
+		private ImGuiMouseCursor cursor;
+
 		public Inlay(RenderProcess renderProcess)
 		{
 			this.renderProcess = renderProcess;
@@ -48,6 +50,14 @@ namespace BrowserHost.Plugin
 			textureWrap = new D3DTextureWrap(view, texture.Description.Width, texture.Description.Height);
 		}
 
+		public void SetCursor(Cursor cursor)
+		{
+			// TODO: Map properly
+			this.cursor = cursor == Cursor.Pointer
+				? ImGuiMouseCursor.Hand
+				: ImGuiMouseCursor.Arrow;
+		}
+
 		public void Render()
 		{
 			if (ImGui.Begin($"{Name}##BrowserHostInlay"))
@@ -59,6 +69,10 @@ namespace BrowserHost.Plugin
 					var io = ImGui.GetIO();
 					var relativeMousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
 					MouseMove(relativeMousePos);
+
+					// TODO: Overlapping windows will likely cause nondeterministic cursor handling here.
+					// Need to ignore cursor if mouse outside window, and work out how (and if) i deal with overlap.
+					ImGui.SetMouseCursor(cursor);
 
 					ImGui.Image(textureWrap.ImGuiHandle, new Vector2(textureWrap.Width, textureWrap.Height));
 				}

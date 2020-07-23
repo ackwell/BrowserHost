@@ -10,6 +10,9 @@ namespace BrowserHost.Plugin
 {
 	class RenderProcess : IDisposable
 	{
+		public delegate object RecieveEventHandler(object sender, UpstreamIpcRequest request);
+		public event RecieveEventHandler Recieve;
+
 		private Process process;
 		private IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest> ipc;
 		private bool running;
@@ -22,14 +25,7 @@ namespace BrowserHost.Plugin
 			keepAliveHandleName = $"BrowserHostRendererKeepAlive{pid}";
 			ipcChannelName = $"BrowserHostRendererIpcChannel{pid}";
 
-			ipc = new IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest>(ipcChannelName, request =>
-			{
-				if (request is SetCursorRequest screq)
-				{
-					PluginLog.Log($"Recieved {screq.Cursor} on {screq.Guid}");
-				}
-				return null;
-			});
+			ipc = new IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest>(ipcChannelName, request => Recieve?.Invoke(this, request));
 
 			var pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 

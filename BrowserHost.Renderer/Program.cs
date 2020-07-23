@@ -92,8 +92,6 @@ namespace BrowserHost.Renderer
 					inlays.Add(newInlayRequest.Guid, inlay);
 					inlay.CursorChanged += (sender, cursor) =>
 					{
-						Console.WriteLine($"Sending: {cursor}");
-
 						ipcBuffer.RemoteRequest<object>(new SetCursorRequest()
 						{
 							Guid = newInlayRequest.Guid,
@@ -114,7 +112,7 @@ namespace BrowserHost.Renderer
 				}
 
 				default:
-					throw new Exception("Unknown IPC request type received.");
+					throw new Exception($"Unknown IPC request type {request.GetType().Name} received.");
 			}
 		}
 

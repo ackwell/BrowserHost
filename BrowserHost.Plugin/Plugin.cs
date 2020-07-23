@@ -1,5 +1,7 @@
-﻿using Dalamud.Plugin;
+﻿using BrowserHost.Common;
+using Dalamud.Plugin;
 using ImGuiNET;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
@@ -17,7 +19,7 @@ namespace BrowserHost.Plugin
 
 		private Thread thread;
 
-		private List<Inlay> inlays = new List<Inlay>();
+		private Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 
 		public void Initialize(DalamudPluginInterface pluginInterface)
 		{
@@ -31,6 +33,7 @@ namespace BrowserHost.Plugin
 			PluginLog.Log("Configuring render process.");
 
 			renderProcess = new RenderProcess(pid);
+			renderProcess.Recieve += HandleIpcRequest;
 			renderProcess.Start();
 
 			thread = new Thread(InitialiseInlays);
@@ -51,14 +54,33 @@ namespace BrowserHost.Plugin
 			// TODO: This is essentially a blocking call on IPC to the render process.
 			//       When handling >1, look into something a-la promise.all for this.
 			inlay.Initialise();
-			inlays.Add(inlay);
+			inlays.Add(inlay.Guid, inlay);
+		}
+
+		private object HandleIpcRequest(object sender, UpstreamIpcRequest request)
+		{
+			switch (request)
+			{
+				case SetCursorRequest setCursorRequest:
+				{
+					var inlay = inlays[setCursorRequest.Guid];
+					inlay.SetCursor(setCursorRequest.Cursor);
+					return null;
+				}
+
+				default:
+					throw new Exception($"Unknown IPC request type {request.GetType().Name} received.");
+			}
 		}
 
 		private void Render()
 		{
 			ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
 
-			inlays.ForEach(inlay => inlay.Render());
+			foreach (Inlay inlay in inlays.Values)
+			{
+				inlay.Render();
+			}
 
 			ImGui.PopStyleVar();
 		}
