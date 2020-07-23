@@ -1,4 +1,5 @@
-﻿using CefSharp;
+﻿using BrowserHost.Common;
+using CefSharp;
 using CefSharp.Enums;
 using CefSharp.OffScreen;
 using CefSharp.Structs;
@@ -27,6 +28,8 @@ namespace BrowserHost.Renderer
 				return sharedTextureHandle;
 			}
 		}
+
+		public event EventHandler<Cursor> CursorChanged;
 
 		public TextureRenderHandler(D3D11.Device device, System.Drawing.Size size)
 		{
@@ -119,9 +122,15 @@ namespace BrowserHost.Renderer
 		{
 		}
 
-		public void OnCursorChange(IntPtr cursor, CursorType type, CursorInfo customCursorInfo)
+		public void OnCursorChange(IntPtr cursorPtr, CursorType type, CursorInfo customCursorInfo)
 		{
-			// TODO: Might need to implement cursor stuff for QoL down the track.
+			Console.WriteLine($"CefCursor: {type}");
+
+			// TODO: Map properly
+			// CEF calls default "pointer", and pointer "hand". Derp.
+			var cursor = type == CursorType.Hand ? Cursor.Pointer : Cursor.Default;
+
+			CursorChanged?.Invoke(this, cursor);
 		}
 
 		public bool StartDragging(IDragData dragData, DragOperationsMask mask, int x, int y)

@@ -1,4 +1,5 @@
-﻿using CefSharp;
+﻿using BrowserHost.Common;
+using CefSharp;
 using CefSharp.OffScreen;
 using System;
 using System.Drawing;
@@ -8,6 +9,12 @@ namespace BrowserHost.Renderer
 	class Inlay : IDisposable
 	{
 		public IntPtr SharedTextureHandle => renderHandler.SharedTextureHandle;
+
+		public event EventHandler<Cursor> CursorChanged
+		{
+			add { renderHandler.CursorChanged += value; }
+			remove { renderHandler.CursorChanged -= value; }
+		}
 
 		private string url;
 		private Size size;

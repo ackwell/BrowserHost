@@ -21,11 +21,13 @@ namespace BrowserHost.Common
 		}
 	}
 
-	[Serializable]
-	public class IpcRequest { }
+	#region Downstream IPC
 
 	[Serializable]
-	public class NewInlayRequest : IpcRequest {
+	public class DownstreamIpcRequest { }
+
+	[Serializable]
+	public class NewInlayRequest : DownstreamIpcRequest {
 		public Guid Guid;
 		public string Url;
 		public int Width;
@@ -38,7 +40,7 @@ namespace BrowserHost.Common
 	}
 
 	[Serializable]
-	public class MouseMoveRequest : IpcRequest
+	public class MouseMoveRequest : DownstreamIpcRequest
 	{
 		public Guid Guid;
 		public float X;
@@ -48,4 +50,30 @@ namespace BrowserHost.Common
 	// TODO: Probably needs a response with what cursor should be used
 	[Serializable]
 	public class MouseMoveResponse { }
+
+	#endregion
+
+	#region Upstream IPC
+
+	[Serializable]
+	public class UpstreamIpcRequest { }
+
+	// TODO: Make this more comprehensive
+	public enum Cursor
+	{
+		Default,
+		Pointer,
+	}
+
+	[Serializable]
+	public class SetCursorRequest : UpstreamIpcRequest
+	{
+		public Guid Guid;
+		public Cursor Cursor;
+	}
+
+	[Serializable]
+	public class SetCursorResponse { }
+
+	#endregion
 }

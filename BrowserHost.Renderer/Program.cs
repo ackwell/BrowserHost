@@ -20,6 +20,8 @@ namespace BrowserHost.Renderer
 		private static Thread parentWatchThread;
 		private static EventWaitHandle waitHandle;
 
+		private static RpcBuffer ipcBuffer;
+
 		private static Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 
 		static void Main(string[] rawArgs)
@@ -50,7 +52,7 @@ namespace BrowserHost.Renderer
 			DxHandler.Initialise();
 			CefHandler.Initialise(cefAssemblyDir);
 
-			var ipcBuffer = new RpcBuffer(args.IpcChannelName, IpcCallback);
+			ipcBuffer = new RpcBuffer(args.IpcChannelName, IpcCallback);
 
 			Console.WriteLine("Waiting...");
 
@@ -83,10 +85,10 @@ namespace BrowserHost.Renderer
 		private static byte[] IpcCallback(ulong messageId, byte[] requestData)
 		{
 			var formatter = new BinaryFormatter();
-			IpcRequest request;
+			DownstreamIpcRequest request;
 			using (MemoryStream stream = new MemoryStream(requestData))
 			{
-				request = (IpcRequest)formatter.Deserialize(stream);
+				request = (DownstreamIpcRequest)formatter.Deserialize(stream);
 			}
 
 			var response = HandleIpcRequest(request);
@@ -100,7 +102,7 @@ namespace BrowserHost.Renderer
 			return rawResponse;
 		}
 
-		private static object HandleIpcRequest(IpcRequest request)
+		private static object HandleIpcRequest(DownstreamIpcRequest request)
 		{
 			switch (request)
 			{
@@ -109,6 +111,23 @@ namespace BrowserHost.Renderer
 					var inlay = new Inlay(newInlayRequest.Url, new Size(newInlayRequest.Width, newInlayRequest.Height));
 					inlay.Initialise();
 					inlays.Add(newInlayRequest.Guid, inlay);
+					inlay.CursorChanged += (sender, cursor) =>
+					{
+						Console.WriteLine($"Sending: {cursor}");
+						// TODO: Clean this up. Move ipc serde to common?
+						var formatter = new BinaryFormatter();
+						byte[] rawRequest;
+						using (MemoryStream stream = new MemoryStream())
+						{
+							formatter.Serialize(stream, new SetCursorRequest()
+							{
+								Guid = newInlayRequest.Guid,
+								Cursor = cursor
+							});
+							rawRequest = stream.ToArray();
+						}
+						ipcBuffer.RemoteRequest(rawRequest);
+					};
 					return new NewInlayResponse() { TextureHandle = inlay.SharedTextureHandle };
 				}
 

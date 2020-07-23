@@ -24,7 +24,20 @@ namespace BrowserHost.Plugin
 			keepAliveHandleName = $"BrowserHostRendererKeepAlive{pid}";
 			ipcChannelName = $"BrowserHostRendererIpcChannel{pid}";
 
-			ipc = new RpcBuffer(ipcChannelName);
+			ipc = new RpcBuffer(ipcChannelName, (messageId, requestData) =>
+			{
+				// argh
+				var formatter = new BinaryFormatter();
+				UpstreamIpcRequest req;
+				using (MemoryStream stream = new MemoryStream(requestData))
+				{
+					req = (UpstreamIpcRequest)formatter.Deserialize(stream);
+				}
+				if (req is SetCursorRequest screq)
+				{
+					PluginLog.Log($"Recieved {screq.Cursor} on {screq.Guid}");
+				}
+			});
 
 			var pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
@@ -66,7 +79,7 @@ namespace BrowserHost.Plugin
 
 		// TODO: Option to wrap this func in an async version
 		// TODO: maybe a void response overload?
-		public Response Send<Response>(IpcRequest request)
+		public Response Send<Response>(DownstreamIpcRequest request)
 		{
 			var formatter = new BinaryFormatter();
 
