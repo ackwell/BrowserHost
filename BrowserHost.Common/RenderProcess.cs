@@ -35,4 +35,15 @@ namespace BrowserHost.Common
 	public class NewInlayResponse {
 		public IntPtr TextureHandle;
 	}
+
+	[Serializable]
+	public class MouseMoveRequest : IpcRequest
+	{
+		public float X;
+		public float Y;
+	}
+
+	// TODO: Probably needs a response with what cursor should be used
+	[Serializable]
+	public class MouseMoveResponse { }
 }

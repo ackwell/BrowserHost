@@ -75,17 +75,33 @@ namespace BrowserHost.Plugin
 
 		private void DrawUi()
 		{
+			ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
 			if (ImGui.Begin("BrowserHost DXTex"))
 			{
-				var ready = sharedTextureWrap != null;
-				ImGui.Text($"shared ready: {ready}");
+				var io = ImGui.GetIO();
+				var relativeMousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
+				MouseMove(relativeMousePos);
 
-				if (ready)
+				if (sharedTextureWrap != null)
 				{
 					ImGui.Image(sharedTextureWrap.ImGuiHandle, new Vector2(sharedTextureWrap.Width, sharedTextureWrap.Height));
 				}
 			}
 			ImGui.End();
+			ImGui.PopStyleVar();
+		}
+
+		// TODO: Proper per-inlay handling, only current focus, etc, etc, etc
+		private void MouseMove(Vector2 position)
+		{
+			// TODO: lmao, yikes
+			if (renderProcess == null) { return; }
+			// TODO: This should probably be async so we're not blocking the render thread with IPC
+			var response = renderProcess.Send<MouseMoveResponse>(new MouseMoveRequest()
+			{
+				X = position.X,
+				Y = position.Y,
+			});
 		}
 
 		public void Dispose()

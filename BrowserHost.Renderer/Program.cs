@@ -19,6 +19,9 @@ namespace BrowserHost.Renderer
 		private static Thread parentWatchThread;
 		private static EventWaitHandle waitHandle;
 
+		// TODO: Support >1 inlay. Map<Guid, Inlay>?
+		private static Inlay inlay;
+
 		static void Main(string[] rawArgs)
 		{
 			Console.WriteLine("Render process running.");
@@ -102,10 +105,17 @@ namespace BrowserHost.Renderer
 			switch (request)
 			{
 				case NewInlayRequest newInlayRequest:
-					// TODO: Need to track inlays. Map<Guid, Inlay>?
-					var inlay = new Inlay(newInlayRequest.Url, new Size(newInlayRequest.Width, newInlayRequest.Height));
+					inlay = new Inlay(newInlayRequest.Url, new Size(newInlayRequest.Width, newInlayRequest.Height));
 					inlay.Initialise();
 					return new NewInlayResponse() { TextureHandle = inlay.SharedTextureHandle };
+
+				case MouseMoveRequest mouseMoveRequest:
+					// TODO: also yikes lmao
+					if (inlay == null) { return new MouseMoveResponse(); }
+					// TODO -> vec2? seems unessecary.
+					inlay.MouseMove(mouseMoveRequest.X, mouseMoveRequest.Y);
+					return new MouseMoveResponse();
+
 				default:
 					throw new Exception("Unknown IPC request type received.");
 			}

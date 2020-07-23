@@ -58,5 +58,14 @@ namespace BrowserHost.Renderer
 			browser.Dispose();
 			renderHandler.Dispose();
 		}
+
+		public void MouseMove(float x, float y)
+		{
+			// TODO: nicer way of handling this?
+			if (browser == null || !browser.IsBrowserInitialized) { return; }
+			// TODO: Modifiers
+			var modifiers = CefEventFlags.None;
+			browser.GetBrowserHost().SendMouseMoveEvent((int)x, (int)y, false, modifiers);
+		}
 	}
 }
