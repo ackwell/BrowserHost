@@ -1,11 +1,9 @@
 ﻿using BrowserHost.Common;
 using Dalamud.Plugin;
-using SharedMemory;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 
 namespace BrowserHost.Plugin
@@ -13,7 +11,7 @@ namespace BrowserHost.Plugin
 	class RenderProcess : IDisposable
 	{
 		private Process process;
-		private RpcBuffer ipc;
+		private IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest> ipc;
 		private bool running;
 
 		private string keepAliveHandleName;
@@ -24,19 +22,13 @@ namespace BrowserHost.Plugin
 			keepAliveHandleName = $"BrowserHostRendererKeepAlive{pid}";
 			ipcChannelName = $"BrowserHostRendererIpcChannel{pid}";
 
-			ipc = new RpcBuffer(ipcChannelName, (messageId, requestData) =>
+			ipc = new IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest>(ipcChannelName, request =>
 			{
-				// argh
-				var formatter = new BinaryFormatter();
-				UpstreamIpcRequest req;
-				using (MemoryStream stream = new MemoryStream(requestData))
-				{
-					req = (UpstreamIpcRequest)formatter.Deserialize(stream);
-				}
-				if (req is SetCursorRequest screq)
+				if (request is SetCursorRequest screq)
 				{
 					PluginLog.Log($"Recieved {screq.Cursor} on {screq.Guid}");
 				}
+				return null;
 			});
 
 			var pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -77,32 +69,12 @@ namespace BrowserHost.Plugin
 			process.BeginErrorReadLine();
 		}
 
-		// TODO: Option to wrap this func in an async version
-		// TODO: maybe a void response overload?
-		public Response Send<Response>(DownstreamIpcRequest request)
+		public void Send(DownstreamIpcRequest request) { Send<object>(request); }
+
+		// TODO: Option to wrap this func in an async version?
+		public TResponse Send<TResponse>(DownstreamIpcRequest request)
 		{
-			var formatter = new BinaryFormatter();
-
-			// Encode request
-			byte[] rawRequest;
-			using (MemoryStream stream = new MemoryStream())
-			{
-				formatter.Serialize(stream, request);
-				rawRequest = stream.ToArray();
-			}
-
-			// Send
-			var rawResponse = ipc.RemoteRequest(rawRequest, timeoutMs: Timeout.Infinite);
-			// TODO: Error check
-
-			// Decode response
-			Response response;
-			using (MemoryStream stream = new MemoryStream(rawResponse.Data))
-			{
-				response = (Response)formatter.Deserialize(stream);
-			}
-
-			return response;
+			return ipc.RemoteRequest<TResponse>(request);
 		}
 
 		public void Stop()

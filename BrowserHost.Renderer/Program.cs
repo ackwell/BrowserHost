@@ -1,5 +1,4 @@
 ﻿using BrowserHost.Common;
-using SharedMemory;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,7 +6,6 @@ using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 
 namespace BrowserHost.Renderer
@@ -20,7 +18,7 @@ namespace BrowserHost.Renderer
 		private static Thread parentWatchThread;
 		private static EventWaitHandle waitHandle;
 
-		private static RpcBuffer ipcBuffer;
+		private static IpcBuffer<DownstreamIpcRequest, UpstreamIpcRequest> ipcBuffer;
 
 		private static Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 
@@ -52,7 +50,7 @@ namespace BrowserHost.Renderer
 			DxHandler.Initialise();
 			CefHandler.Initialise(cefAssemblyDir);
 
-			ipcBuffer = new RpcBuffer(args.IpcChannelName, IpcCallback);
+			ipcBuffer = new IpcBuffer<DownstreamIpcRequest, UpstreamIpcRequest>(args.IpcChannelName, HandleIpcRequest);
 
 			Console.WriteLine("Waiting...");
 
@@ -82,51 +80,25 @@ namespace BrowserHost.Renderer
 			catch (InvalidOperationException) { }
 		}
 
-		private static byte[] IpcCallback(ulong messageId, byte[] requestData)
-		{
-			var formatter = new BinaryFormatter();
-			DownstreamIpcRequest request;
-			using (MemoryStream stream = new MemoryStream(requestData))
-			{
-				request = (DownstreamIpcRequest)formatter.Deserialize(stream);
-			}
-
-			var response = HandleIpcRequest(request);
-
-			byte[] rawResponse;
-			using (MemoryStream stream = new MemoryStream())
-			{
-				formatter.Serialize(stream, response);
-				rawResponse = stream.ToArray();
-			}
-			return rawResponse;
-		}
-
 		private static object HandleIpcRequest(DownstreamIpcRequest request)
 		{
 			switch (request)
 			{
 				case NewInlayRequest newInlayRequest:
 				{
+					// TODO: Move bulk of this into a method
 					var inlay = new Inlay(newInlayRequest.Url, new Size(newInlayRequest.Width, newInlayRequest.Height));
 					inlay.Initialise();
 					inlays.Add(newInlayRequest.Guid, inlay);
 					inlay.CursorChanged += (sender, cursor) =>
 					{
 						Console.WriteLine($"Sending: {cursor}");
-						// TODO: Clean this up. Move ipc serde to common?
-						var formatter = new BinaryFormatter();
-						byte[] rawRequest;
-						using (MemoryStream stream = new MemoryStream())
+
+						ipcBuffer.RemoteRequest<object>(new SetCursorRequest()
 						{
-							formatter.Serialize(stream, new SetCursorRequest()
-							{
-								Guid = newInlayRequest.Guid,
-								Cursor = cursor
-							});
-							rawRequest = stream.ToArray();
-						}
-						ipcBuffer.RemoteRequest(rawRequest);
+							Guid = newInlayRequest.Guid,
+							Cursor = cursor
+						});
 					};
 					return new NewInlayResponse() { TextureHandle = inlay.SharedTextureHandle };
 				}
@@ -135,10 +107,10 @@ namespace BrowserHost.Renderer
 				{
 					var inlay = inlays[mouseMoveRequest.Guid];
 					// TODO: also yikes lmao
-					if (inlay == null) { return new MouseMoveResponse(); }
+					if (inlay == null) { return null; }
 					// TODO -> vec2? seems unessecary.
 					inlay.MouseMove(mouseMoveRequest.X, mouseMoveRequest.Y);
-					return new MouseMoveResponse();
+					return null;
 				}
 
 				default:

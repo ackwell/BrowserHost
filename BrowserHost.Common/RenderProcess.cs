@@ -47,10 +47,6 @@ namespace BrowserHost.Common
 		public float Y;
 	}
 
-	// TODO: Probably needs a response with what cursor should be used
-	[Serializable]
-	public class MouseMoveResponse { }
-
 	#endregion
 
 	#region Upstream IPC
@@ -71,9 +67,6 @@ namespace BrowserHost.Common
 		public Guid Guid;
 		public Cursor Cursor;
 	}
-
-	[Serializable]
-	public class SetCursorResponse { }
 
 	#endregion
 }

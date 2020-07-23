@@ -1,5 +1,4 @@
-﻿
-using BrowserHost.Common;
+﻿using BrowserHost.Common;
 using ImGuiNET;
 using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
@@ -73,7 +72,7 @@ namespace BrowserHost.Plugin
 			// TODO: lmao, yikes
 			if (renderProcess == null) { return; }
 			// TODO: This should probably be async so we're not blocking the render thread with IPC
-			var response = renderProcess.Send<MouseMoveResponse>(new MouseMoveRequest()
+			renderProcess.Send(new MouseMoveRequest()
 			{
 				Guid = Guid,
 				X = position.X,
