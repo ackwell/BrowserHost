@@ -1,6 +1,7 @@
 ﻿using BrowserHost.Common;
 using SharedMemory;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -19,8 +20,7 @@ namespace BrowserHost.Renderer
 		private static Thread parentWatchThread;
 		private static EventWaitHandle waitHandle;
 
-		// TODO: Support >1 inlay. Map<Guid, Inlay>?
-		private static Inlay inlay;
+		private static Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 
 		static void Main(string[] rawArgs)
 		{
@@ -105,16 +105,22 @@ namespace BrowserHost.Renderer
 			switch (request)
 			{
 				case NewInlayRequest newInlayRequest:
-					inlay = new Inlay(newInlayRequest.Url, new Size(newInlayRequest.Width, newInlayRequest.Height));
+				{
+					var inlay = new Inlay(newInlayRequest.Url, new Size(newInlayRequest.Width, newInlayRequest.Height));
 					inlay.Initialise();
+					inlays.Add(newInlayRequest.Guid, inlay);
 					return new NewInlayResponse() { TextureHandle = inlay.SharedTextureHandle };
+				}
 
 				case MouseMoveRequest mouseMoveRequest:
+				{
+					var inlay = inlays[mouseMoveRequest.Guid];
 					// TODO: also yikes lmao
 					if (inlay == null) { return new MouseMoveResponse(); }
 					// TODO -> vec2? seems unessecary.
 					inlay.MouseMove(mouseMoveRequest.X, mouseMoveRequest.Y);
 					return new MouseMoveResponse();
+				}
 
 				default:
 					throw new Exception("Unknown IPC request type received.");

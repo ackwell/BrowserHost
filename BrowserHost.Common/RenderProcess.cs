@@ -26,6 +26,7 @@ namespace BrowserHost.Common
 
 	[Serializable]
 	public class NewInlayRequest : IpcRequest {
+		public Guid Guid;
 		public string Url;
 		public int Width;
 		public int Height;
@@ -39,6 +40,7 @@ namespace BrowserHost.Common
 	[Serializable]
 	public class MouseMoveRequest : IpcRequest
 	{
+		public Guid Guid;
 		public float X;
 		public float Y;
 	}

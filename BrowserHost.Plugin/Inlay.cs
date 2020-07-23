@@ -31,6 +31,7 @@ namespace BrowserHost.Plugin
 			// Build the inlay on the renderer
 			var response = renderProcess.Send<NewInlayResponse>(new NewInlayRequest()
 			{
+				Guid = Guid,
 				Url = Url,
 				Width = Width,
 				Height = Height,
@@ -74,6 +75,7 @@ namespace BrowserHost.Plugin
 			// TODO: This should probably be async so we're not blocking the render thread with IPC
 			var response = renderProcess.Send<MouseMoveResponse>(new MouseMoveRequest()
 			{
+				Guid = Guid,
 				X = position.X,
 				Y = position.Y,
 			});
