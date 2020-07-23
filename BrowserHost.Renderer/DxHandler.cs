@@ -5,7 +5,7 @@ namespace BrowserHost.Renderer
 {
 	static class DxHandler
 	{
-		public static D3D11.Device Device;
+		public static D3D11.Device Device { get; private set; }
 
 		public static void Initialise()
 		{
