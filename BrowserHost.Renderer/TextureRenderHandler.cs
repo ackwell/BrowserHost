@@ -88,26 +88,31 @@ namespace BrowserHost.Renderer
 
 		public void OnPaint(PaintElementType type, Rect dirtyRect, IntPtr buffer, int width, int height)
 		{
+			var rowPitch = width * bytesPerPixel;
+			var depthPitch = rowPitch * height;
+			var sourceRegionPtr = buffer + (dirtyRect.X * bytesPerPixel) + (dirtyRect.Y * rowPitch);
+			var destinationRegion = new D3D11.ResourceRegion(dirtyRect.X, dirtyRect.Y, 0, dirtyRect.X + dirtyRect.Width, dirtyRect.Y + dirtyRect.Height, 1);
+
 			switch (type)
 			{
 				case PaintElementType.View:
-					OnPaintView(dirtyRect, buffer, width, height);
+					OnPaintView(sourceRegionPtr, rowPitch, depthPitch, destinationRegion);
 					break;
 				case PaintElementType.Popup:
-					OnPaintPopup(dirtyRect, buffer, width, height);
+					OnPaintPopup(sourceRegionPtr, rowPitch, depthPitch, destinationRegion);
 					break;
 			}
 		}
 
-		private void OnPaintView(Rect dirtyRect, IntPtr buffer, int width, int height)
+		private void OnPaintView(IntPtr source, int sourceRowPitch, int sourceDepthPitch, D3D11.ResourceRegion destinationRegion)
 		{
 			var context = texture.Device.ImmediateContext;
 
-			// TODO: This is very much a cruddy MVP impl. Few things to look into:
+			// TODO: This likely has some avenues for optimisation still.
 			//   - STAGING texture w/ CopySubresourceRegion
-			//   - Only updating the dirty rect
 			//   - Maps?
-			context.UpdateSubresource(new DataBox(buffer, width * bytesPerPixel, width * height * bytesPerPixel), texture);
+			//   - Texture array for layering popup (would shared permit this?)
+			context.UpdateSubresource(texture, 0, destinationRegion, source, sourceRowPitch, sourceDepthPitch);
 
 			if (popupVisible)
 			{
@@ -117,10 +122,14 @@ namespace BrowserHost.Renderer
 			context.Flush();
 		}
 
-		private void OnPaintPopup(Rect dirtyRect, IntPtr buffer, int width, int height)
+		private void OnPaintPopup(IntPtr source, int sourceRowPitch, int sourceDepthPitch, D3D11.ResourceRegion destinationRegion)
 		{
-			// Likewise to OnPaintView, this is MVP and should be optimised.
-			popupTexture.Device.ImmediateContext.UpdateSubresource(new DataBox(buffer, width * bytesPerPixel, width * height * bytesPerPixel), popupTexture);
+			var context = popupTexture.Device.ImmediateContext;
+
+			// See comment in `OnPaintView` re: optimisation of rendering.
+			context.UpdateSubresource(popupTexture, 0, destinationRegion, source, sourceRowPitch, sourceDepthPitch);
+
+			// We're not flushing here, relying on the primary view to flush for us.
 		}
 
 		public void OnAcceleratedPaint(PaintElementType type, Rect dirtyRect, IntPtr sharedHandle)
