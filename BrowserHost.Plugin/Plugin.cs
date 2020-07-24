@@ -48,8 +48,7 @@ namespace BrowserHost.Plugin
 			{
 				Name = "Test UFO",
 				Url = "https://www.testufo.com/framerates#count=3&background=stars&pps=960",
-				Width = 800,
-				Height = 800,
+				Size = new Vector2(800, 800),
 			};
 			// TODO: This is essentially a blocking call on IPC to the render process.
 			//       When handling >1, look into something a-la promise.all for this.

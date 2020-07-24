@@ -110,6 +110,14 @@ namespace BrowserHost.Renderer
 					return null;
 				}
 
+				case ResizeInlayRequest resizeInlayRequest:
+				{
+					var inlay = inlays[resizeInlayRequest.Guid];
+					if (inlay == null) { return null; }
+					inlay.Resize(new Size(resizeInlayRequest.Width, resizeInlayRequest.Height));
+					return new ResizeInlayResponse() { TextureHandle = inlay.SharedTextureHandle };
+				}
+
 				default:
 					throw new Exception($"Unknown IPC request type {request.GetType().Name} received.");
 			}

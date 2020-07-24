@@ -3,7 +3,6 @@ using CefSharp;
 using CefSharp.Enums;
 using CefSharp.OffScreen;
 using CefSharp.Structs;
-using SharpDX;
 using D3D11 = SharpDX.Direct3D11;
 using DXGI = SharpDX.DXGI;
 using System;
@@ -38,10 +37,30 @@ namespace BrowserHost.Renderer
 
 		public event EventHandler<Cursor> CursorChanged;
 
-		public TextureRenderHandler(D3D11.Device device, System.Drawing.Size size)
+		public TextureRenderHandler(System.Drawing.Size size)
+		{
+			texture = BuildViewTexture(size);
+		}
+
+		public void Dispose()
+		{
+			texture.Dispose();
+		}
+
+		public void Resize(System.Drawing.Size size)
+		{
+			var oldTexture = texture;
+			texture = BuildViewTexture(size);
+			// Need to clear the cached handle value
+			// TODO: Maybe I should just avoid the lazy cache and do it eagerly on texture build.
+			sharedTextureHandle = IntPtr.Zero;
+			if (oldTexture != null) { oldTexture.Dispose(); }
+		}
+
+		private D3D11.Texture2D BuildViewTexture(System.Drawing.Size size)
 		{
 			// Build texture. Most of these properties are defined to match how CEF exposes the render buffer.
-			texture = new D3D11.Texture2D(device, new D3D11.Texture2DDescription()
+			return new D3D11.Texture2D(DxHandler.Device, new D3D11.Texture2DDescription()
 			{
 				Width = size.Width,
 				Height = size.Height,
@@ -55,11 +74,6 @@ namespace BrowserHost.Renderer
 				// TODO: Look into getting SharedKeyedmutex working without a CTD from the plugin side.
 				OptionFlags = D3D11.ResourceOptionFlags.Shared,
 			});
-		}
-
-		public void Dispose()
-		{
-			texture.Dispose();
 		}
 
 		# region IRenderHandler implementation
@@ -96,6 +110,11 @@ namespace BrowserHost.Renderer
 			switch (type)
 			{
 				case PaintElementType.View:
+					if (width != texture.Description.Width || height != texture.Description.Height)
+					{
+						// TODO: Render something other than literally nothing while waiting for size to settle.
+						break;
+					}
 					OnPaintView(sourceRegionPtr, rowPitch, depthPitch, destinationRegion);
 					break;
 				case PaintElementType.Popup:

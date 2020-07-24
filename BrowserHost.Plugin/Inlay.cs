@@ -5,6 +5,7 @@ using D3D11 = SharpDX.Direct3D11;
 using System;
 using ImGuiScene;
 using System.Numerics;
+using Dalamud.Plugin;
 
 namespace BrowserHost.Plugin
 {
@@ -12,8 +13,7 @@ namespace BrowserHost.Plugin
 	{
 		public string Name;
 		public string Url;
-		public ushort Width;
-		public ushort Height;
+		public Vector2 Size;
 
 		public Guid Guid { get; } = Guid.NewGuid();
 
@@ -34,20 +34,11 @@ namespace BrowserHost.Plugin
 			{
 				Guid = Guid,
 				Url = Url,
-				Width = Width,
-				Height = Height,
+				Width = (int)Size.X,
+				Height = (int)Size.Y,
 			});
 
-			// Build up the texture from the shared handle
-			var texture = DxHandler.Device.OpenSharedResource<D3D11.Texture2D>(response.TextureHandle);
-			var view = new D3D11.ShaderResourceView(DxHandler.Device, texture, new D3D11.ShaderResourceViewDescription()
-			{
-				Format = texture.Description.Format,
-				Dimension = D3D.ShaderResourceViewDimension.Texture2D,
-				Texture2D = { MipLevels = texture.Description.MipLevels },
-			});
-
-			textureWrap = new D3DTextureWrap(view, texture.Description.Width, texture.Description.Height);
+			textureWrap = BuildTextureWrap(response.TextureHandle);
 		}
 
 		public void SetCursor(Cursor cursor)
@@ -61,6 +52,7 @@ namespace BrowserHost.Plugin
 			if (ImGui.Begin($"{Name}##BrowserHostInlay") && textureWrap != null)
 			{
 				HandleMouseEvent();
+				HandleResize();
 
 				// TODO: Overlapping windows will likely cause nondeterministic cursor handling here.
 				// Need to ignore cursor if mouse outside window, and work out how (and if) i deal with overlap.
@@ -93,6 +85,41 @@ namespace BrowserHost.Plugin
 			// TODO: Either this or the entire handler function should be asynchronous so we're not blocking the entire draw thread
 			renderProcess.Send(request);
 		}
+
+		private void HandleResize()
+		{
+			var currentSize = ImGui.GetWindowContentRegionMax() - ImGui.GetWindowContentRegionMin();
+			if (currentSize == Size) { return; }
+
+			// TODO: Wonder if I should just use imgui's .ini as the SOT for the size, and wait a frame before rendering to fetch?
+			//       Alternatively, might be a _lot_ of junk in the ini doing that way, so json config might be "cleaner".
+			Size = currentSize;
+
+			var response = renderProcess.Send<ResizeInlayResponse>(new ResizeInlayRequest()
+			{
+				Guid = Guid,
+				Width = (int)Size.X,
+				Height = (int)Size.Y,
+			});
+
+			textureWrap = BuildTextureWrap(response.TextureHandle);
+		}
+
+		// TODO: This seems like a lot of junk to do every time we resize... is it possible to reuse some of this?
+		private TextureWrap BuildTextureWrap(IntPtr textureHandle)
+		{
+			var texture = DxHandler.Device.OpenSharedResource<D3D11.Texture2D>(textureHandle);
+			var view = new D3D11.ShaderResourceView(DxHandler.Device, texture, new D3D11.ShaderResourceViewDescription()
+			{
+				Format = texture.Description.Format,
+				Dimension = D3D.ShaderResourceViewDimension.Texture2D,
+				Texture2D = { MipLevels = texture.Description.MipLevels },
+			});
+
+			return new D3DTextureWrap(view, texture.Description.Width, texture.Description.Height);
+		}
+
+		#region serde
 
 		private MouseButton EncodeMouseButtons(RangeAccessor<bool> buttons)
 		{
@@ -141,5 +168,7 @@ namespace BrowserHost.Plugin
 
 			return ImGuiMouseCursor.Arrow;
 		}
+
+		#endregion
 	}
 }

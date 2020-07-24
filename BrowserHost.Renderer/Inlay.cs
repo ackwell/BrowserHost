@@ -34,7 +34,7 @@ namespace BrowserHost.Renderer
 			browser = new ChromiumWebBrowser(url, automaticallyCreateBrowser: false);
 
 			// Set up the DX texture-based rendering
-			renderHandler = new TextureRenderHandler(DxHandler.Device, size);
+			renderHandler = new TextureRenderHandler(size);
 			browser.RenderHandler = renderHandler;
 
 			// General browser config
@@ -85,6 +85,13 @@ namespace BrowserHost.Renderer
 			// TODO: Handle clickCount
 			DecodeMouseButtons(request.Down).ForEach(button => host.SendMouseClickEvent(event_, button, false, 1));
 			DecodeMouseButtons(request.Up).ForEach(button => host.SendMouseClickEvent(event_, button, true, 1));
+		}
+
+		public void Resize(Size size)
+		{
+			// Need to resize renderer first, the browser will check it (and hence the texture) when browser.Size is set.
+			renderHandler.Resize(size);
+			browser.Size = size;
 		}
 
 		private List<MouseButtonType> DecodeMouseButtons(MouseButton buttons)

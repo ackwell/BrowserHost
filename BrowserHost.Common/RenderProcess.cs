@@ -39,6 +39,20 @@ namespace BrowserHost.Common
 		public IntPtr TextureHandle;
 	}
 
+	[Serializable]
+	public class ResizeInlayRequest : DownstreamIpcRequest
+	{
+		public Guid Guid;
+		public int Width;
+		public int Height;
+	}
+
+	[Serializable]
+	public class ResizeInlayResponse
+	{
+		public IntPtr TextureHandle;
+	}
+
 	public enum MouseButton
 	{
 		None = 0,
