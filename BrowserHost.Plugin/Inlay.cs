@@ -52,10 +52,7 @@ namespace BrowserHost.Plugin
 
 		public void SetCursor(Cursor cursor)
 		{
-			// TODO: Map properly
-			this.cursor = cursor == Cursor.Pointer
-				? ImGuiMouseCursor.Hand
-				: ImGuiMouseCursor.Arrow;
+			this.cursor = DecodeCursor(cursor);
 		}
 
 		public void Render()
@@ -106,6 +103,43 @@ namespace BrowserHost.Plugin
 			if (buttons[3]) { result |= MouseButton.Fourth; }
 			if (buttons[4]) { result |= MouseButton.Fifth; }
 			return result;
+		}
+
+		private ImGuiMouseCursor DecodeCursor(Cursor cursor)
+		{
+			// ngl kinda disappointed at the lack of options here
+			switch (cursor)
+			{
+				case Cursor.Default: return ImGuiMouseCursor.Arrow;
+				case Cursor.None: return ImGuiMouseCursor.None;
+				case Cursor.Pointer: return ImGuiMouseCursor.Hand;
+
+				case Cursor.Text:
+				case Cursor.VerticalText:
+					return ImGuiMouseCursor.TextInput;
+
+				case Cursor.NResize:
+				case Cursor.SResize:
+				case Cursor.NSResize:
+					return ImGuiMouseCursor.ResizeNS;
+
+				case Cursor.EResize:
+				case Cursor.WResize:
+				case Cursor.EWResize:
+					return ImGuiMouseCursor.ResizeEW;
+
+				case Cursor.NEResize:
+				case Cursor.SWResize:
+				case Cursor.NESWResize:
+					return ImGuiMouseCursor.ResizeNESW;
+
+				case Cursor.NWResize:
+				case Cursor.SEResize:
+				case Cursor.NWSEResize:
+					return ImGuiMouseCursor.ResizeNWSE;
+			}
+
+			return ImGuiMouseCursor.Arrow;
 		}
 	}
 }

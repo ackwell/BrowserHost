@@ -67,11 +67,45 @@ namespace BrowserHost.Common
 	[Serializable]
 	public class UpstreamIpcRequest { }
 
-	// TODO: Make this more comprehensive
+	// Akk, did you really write out every supported value of the cursor property despite both sides of the IPC not supporting the full set?
+	// Yes. Yes I did.
 	public enum Cursor
 	{
 		Default,
+		None,
+		ContextMenu,
+		Help,
 		Pointer,
+		Progress,
+		Wait,
+		Cell,
+		Crosshair,
+		Text,
+		VerticalText,
+		Alias,
+		Copy,
+		Move,
+		NoDrop,
+		NotAllowed,
+		Grab,
+		Grabbing,
+		AllScroll,
+		ColResize,
+		RowResize,
+		NResize,
+		EResize,
+		SResize,
+		WResize,
+		NEResize,
+		NWResize,
+		SEResize,
+		SWResize,
+		EWResize,
+		NSResize,
+		NESWResize,
+		NWSEResize,
+		ZoomIn,
+		ZoomOut,
 	}
 
 	[Serializable]
