@@ -101,13 +101,12 @@ namespace BrowserHost.Renderer
 					return new NewInlayResponse() { TextureHandle = inlay.SharedTextureHandle };
 				}
 
-				case MouseMoveRequest mouseMoveRequest:
+				case MouseEventRequest mouseMoveRequest:
 				{
 					var inlay = inlays[mouseMoveRequest.Guid];
 					// TODO: also yikes lmao
 					if (inlay == null) { return null; }
-					// TODO -> vec2? seems unessecary.
-					inlay.MouseMove(mouseMoveRequest.X, mouseMoveRequest.Y);
+					inlay.HandleMouseEvent(mouseMoveRequest);
 					return null;
 				}
 

@@ -60,38 +60,52 @@ namespace BrowserHost.Plugin
 
 		public void Render()
 		{
-			if (ImGui.Begin($"{Name}##BrowserHostInlay"))
+			// TODO: Renderer can take some time to spin up properly, should add a loading state.
+			if (ImGui.Begin($"{Name}##BrowserHostInlay") && textureWrap != null)
 			{
-				// TODO: Shortcut the entire window if it's not ready? Or should I add a loader?
-				if (textureWrap != null)
-				{
-					// TODO: Better handling for this.
-					var io = ImGui.GetIO();
-					var relativeMousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
-					MouseMove(relativeMousePos);
+				HandleMouseEvent();
 
-					// TODO: Overlapping windows will likely cause nondeterministic cursor handling here.
-					// Need to ignore cursor if mouse outside window, and work out how (and if) i deal with overlap.
-					ImGui.SetMouseCursor(cursor);
+				// TODO: Overlapping windows will likely cause nondeterministic cursor handling here.
+				// Need to ignore cursor if mouse outside window, and work out how (and if) i deal with overlap.
+				ImGui.SetMouseCursor(cursor);
 
-					ImGui.Image(textureWrap.ImGuiHandle, new Vector2(textureWrap.Width, textureWrap.Height));
-				}
+				ImGui.Image(textureWrap.ImGuiHandle, new Vector2(textureWrap.Width, textureWrap.Height));
 			}
 			ImGui.End();
 		}
 
-		// TODO: Proper only current focus, etc, etc, etc
-		private void MouseMove(Vector2 position)
+		// TODO: Dedupe when mouse isn't moving (will need to check change manually, imgui posprev isn't working).
+		// TODO: Don't send mouse input if mouse is outside bound of texture. Might need to signal a frame leave?
+		private void HandleMouseEvent()
 		{
-			// TODO: lmao, yikes
+			// Render proc won't be ready on first boot
 			if (renderProcess == null) { return; }
-			// TODO: This should probably be async so we're not blocking the render thread with IPC
-			renderProcess.Send(new MouseMoveRequest()
+
+			var io = ImGui.GetIO();
+			var mousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
+
+			var request = new MouseEventRequest()
 			{
 				Guid = Guid,
-				X = position.X,
-				Y = position.Y,
-			});
+				X = mousePos.X,
+				Y = mousePos.Y,
+				Down = EncodeMouseButtons(io.MouseClicked),
+				Up = EncodeMouseButtons(io.MouseReleased),
+			};
+
+			// TODO: Either this or the entire handler function should be asynchronous so we're not blocking the entire draw thread
+			renderProcess.Send(request);
+		}
+
+		private MouseButton EncodeMouseButtons(RangeAccessor<bool> buttons)
+		{
+			var result = MouseButton.None;
+			if (buttons[0]) { result |= MouseButton.Primary; }
+			if (buttons[1]) { result |= MouseButton.Secondary; }
+			if (buttons[2]) { result |= MouseButton.Tertiary; }
+			if (buttons[3]) { result |= MouseButton.Fourth; }
+			if (buttons[4]) { result |= MouseButton.Fifth; }
+			return result;
 		}
 	}
 }

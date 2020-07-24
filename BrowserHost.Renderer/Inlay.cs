@@ -2,6 +2,7 @@
 using CefSharp;
 using CefSharp.OffScreen;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 
 namespace BrowserHost.Renderer
@@ -66,13 +67,33 @@ namespace BrowserHost.Renderer
 			renderHandler.Dispose();
 		}
 
-		public void MouseMove(float x, float y)
+		public void HandleMouseEvent(MouseEventRequest request)
 		{
-			// TODO: nicer way of handling this?
+			// If the browser isn't ready yet, noop
 			if (browser == null || !browser.IsBrowserInitialized) { return; }
-			// TODO: Modifiers
-			var modifiers = CefEventFlags.None;
-			browser.GetBrowserHost().SendMouseMoveEvent((int)x, (int)y, false, modifiers);
+
+			// TODO: Handle key modifiers
+			var event_ = new MouseEvent((int)request.X, (int)request.Y, CefEventFlags.None);
+
+			var host = browser.GetBrowserHost();
+
+			// Ensure the mouse position is up to date
+			// TODO: the `false` is mouseLeave, which may be what we want for moving off-window? Research.
+			host.SendMouseMoveEvent(event_, false);
+
+			// Fire any relevant click events
+			// TODO: Handle clickCount
+			DecodeMouseButtons(request.Down).ForEach(button => host.SendMouseClickEvent(event_, button, false, 1));
+			DecodeMouseButtons(request.Up).ForEach(button => host.SendMouseClickEvent(event_, button, true, 1));
+		}
+
+		private List<MouseButtonType> DecodeMouseButtons(MouseButton buttons)
+		{
+			var result = new List<MouseButtonType>();
+			if ((buttons & MouseButton.Primary) == MouseButton.Primary) { result.Add(MouseButtonType.Left); }
+			if ((buttons & MouseButton.Secondary) == MouseButton.Secondary) { result.Add(MouseButtonType.Right); }
+			if ((buttons & MouseButton.Tertiary) == MouseButton.Tertiary) { result.Add(MouseButtonType.Middle); }
+			return result;
 		}
 	}
 }
