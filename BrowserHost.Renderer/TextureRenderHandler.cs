@@ -12,7 +12,14 @@ namespace BrowserHost.Renderer
 {
 	class TextureRenderHandler : IRenderHandler
 	{
+		// CEF buffers are 32-bit BGRA
+		private const byte bytesPerPixel = 4;
+
 		private D3D11.Texture2D texture;
+		private D3D11.Texture2D popupTexture;
+
+		private bool popupVisible;
+		private Rect popupRect;
 
 		private IntPtr sharedTextureHandle = IntPtr.Zero;
 		public IntPtr SharedTextureHandle {
@@ -81,12 +88,19 @@ namespace BrowserHost.Renderer
 
 		public void OnPaint(PaintElementType type, Rect dirtyRect, IntPtr buffer, int width, int height)
 		{
-			// TODO: Handle popups
-			if (type == PaintElementType.Popup) { return; }
+			switch (type)
+			{
+				case PaintElementType.View:
+					OnPaintView(dirtyRect, buffer, width, height);
+					break;
+				case PaintElementType.Popup:
+					OnPaintPopup(dirtyRect, buffer, width, height);
+					break;
+			}
+		}
 
-			// TODO: Define this better. The incoming buffer is a ptr to a 32-bit BGRA buffer, so 4 bytes per pixel.
-			var bytesPerPixel = 4;
-
+		private void OnPaintView(Rect dirtyRect, IntPtr buffer, int width, int height)
+		{
 			var context = texture.Device.ImmediateContext;
 
 			// TODO: This is very much a cruddy MVP impl. Few things to look into:
@@ -94,7 +108,19 @@ namespace BrowserHost.Renderer
 			//   - Only updating the dirty rect
 			//   - Maps?
 			context.UpdateSubresource(new DataBox(buffer, width * bytesPerPixel, width * height * bytesPerPixel), texture);
+
+			if (popupVisible)
+			{
+				context.CopySubresourceRegion(popupTexture, 0, null, texture, 0, popupRect.X, popupRect.Y);
+			}
+
 			context.Flush();
+		}
+
+		private void OnPaintPopup(Rect dirtyRect, IntPtr buffer, int width, int height)
+		{
+			// Likewise to OnPaintView, this is MVP and should be optimised.
+			popupTexture.Device.ImmediateContext.UpdateSubresource(new DataBox(buffer, width * bytesPerPixel, width * height * bytesPerPixel), popupTexture);
 		}
 
 		public void OnAcceleratedPaint(PaintElementType type, Rect dirtyRect, IntPtr sharedHandle)
@@ -106,12 +132,41 @@ namespace BrowserHost.Renderer
 
 		public void OnPopupShow(bool show)
 		{
-			throw new NotImplementedException();
+			popupVisible = show;
+			// TODO: May need to set a "clean up" flag when true->false to re-render the popup surface as well as dirty rect,
+			//       once I start dealing with the dirty rect.
 		}
 
 		public void OnPopupSize(Rect rect)
 		{
-			throw new NotImplementedException();
+			popupRect = rect;
+
+			// I'm really not sure if this happens. If it does, frequently - will probably need 2x shared textures and some jazz.
+			var texDesc = texture.Description;
+			if (rect.Width > texDesc.Width || rect.Height > texDesc.Height)
+			{
+				Console.Error.WriteLine($"Trying to build popup layer ({rect.Width}x{rect.Height}) larger than primary surface ({texDesc.Width}x{texDesc.Height}).");
+			}
+
+			// Get a reference to the old texture, we'll make sure to assign a new texture before disposing the old one.
+			var oldTexture = popupTexture;
+
+			// Build a texture for the new sized popup
+			popupTexture = new D3D11.Texture2D(texture.Device, new D3D11.Texture2DDescription()
+			{
+				Width = rect.Width,
+				Height = rect.Height,
+				MipLevels = 1,
+				ArraySize = 1,
+				Format = DXGI.Format.B8G8R8A8_UNorm,
+				SampleDescription = new DXGI.SampleDescription(1, 0),
+				Usage = D3D11.ResourceUsage.Default,
+				BindFlags = D3D11.BindFlags.ShaderResource,
+				CpuAccessFlags = D3D11.CpuAccessFlags.None,
+				OptionFlags = D3D11.ResourceOptionFlags.None,
+			});
+
+			if (oldTexture != null) { oldTexture.Dispose(); }
 		}
 
 		public void OnVirtualKeyboardRequested(IBrowser browser, TextInputMode inputMode)
