@@ -5,11 +5,10 @@ using D3D11 = SharpDX.Direct3D11;
 using System;
 using ImGuiScene;
 using System.Numerics;
-using Dalamud.Plugin;
 
 namespace BrowserHost.Plugin
 {
-	class Inlay
+	class Inlay : IDisposable
 	{
 		public string Name;
 		public string Url;
@@ -41,6 +40,11 @@ namespace BrowserHost.Plugin
 			textureWrap = BuildTextureWrap(response.TextureHandle);
 		}
 
+		public void Dispose()
+		{
+			textureWrap.Dispose();
+		}
+
 		public void SetCursor(Cursor cursor)
 		{
 			this.cursor = DecodeCursor(cursor);
@@ -49,7 +53,8 @@ namespace BrowserHost.Plugin
 		public void Render()
 		{
 			// TODO: Renderer can take some time to spin up properly, should add a loading state.
-			if (ImGui.Begin($"{Name}##BrowserHostInlay") && textureWrap != null)
+			ImGui.Begin($"{Name}##BrowserHostInlay");
+			if (textureWrap != null)
 			{
 				HandleMouseEvent();
 				HandleResize();

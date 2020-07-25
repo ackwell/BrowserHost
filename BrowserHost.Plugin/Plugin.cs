@@ -15,31 +15,34 @@ namespace BrowserHost.Plugin
 
 		private DalamudPluginInterface pluginInterface;
 
+		private Settings settings;
+
 		private RenderProcess renderProcess;
-
-		private Thread thread;
-
+		private Thread inlayInitThread;
 		private Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 
 		public void Initialize(DalamudPluginInterface pluginInterface)
 		{
+			// Spin up DX handling from the plugin interface
+			DxHandler.Initialise(pluginInterface);
+
+			// Hook up the plugin interface and our UI rendering logic
 			this.pluginInterface = pluginInterface;
 			pluginInterface.UiBuilder.OnBuildUi += Render;
 
-			DxHandler.Initialise(pluginInterface);
+			// Prep settings
+			// TODO: This may be worth doing in the init thread, it may be IO blocked on config down the road.
+			settings = new Settings();
 
+			// Boot the render process
 			var pid = Process.GetCurrentProcess().Id;
-
-			PluginLog.Log("Configuring render process.");
-
 			renderProcess = new RenderProcess(pid);
 			renderProcess.Recieve += HandleIpcRequest;
 			renderProcess.Start();
 
-			thread = new Thread(InitialiseInlays);
-			thread.Start();
-
-			PluginLog.Log("Loaded.");
+			// Init inlays in a seperate thread so we're not blocking the rest of dalamud
+			inlayInitThread = new Thread(InitialiseInlays);
+			inlayInitThread.Start();
 		}
 
 		private void InitialiseInlays()
@@ -74,25 +77,28 @@ namespace BrowserHost.Plugin
 
 		private void Render()
 		{
+			settings.Render();
+
 			ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
 
-			foreach (Inlay inlay in inlays.Values)
-			{
-				inlay.Render();
-			}
+			foreach (var inlay in inlays.Values) { inlay.Render(); }
 
 			ImGui.PopStyleVar();
 		}
 
 		public void Dispose()
 		{
+			inlayInitThread.Join();
+			foreach (var inlay in inlays.Values) { inlay.Dispose(); }
+			inlays.Clear();
+
 			renderProcess.Dispose();
 
-			thread.Join();
-
-			DxHandler.Shutdown();
+			settings.Dispose();
 
 			pluginInterface.Dispose();
+
+			DxHandler.Shutdown();
 		}
 	}
 }
