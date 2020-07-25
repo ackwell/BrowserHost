@@ -28,6 +28,8 @@ namespace BrowserHost.Plugin
 				if (ImGui.CollapsingHeader($"{inlay.Name}###{inlay.Guid}"))
 				{
 					ImGui.InputText("Name", ref inlay.Name, 100);
+					ImGui.Checkbox("Locked", ref inlay.Locked);
+					ImGui.Checkbox("Click Through", ref inlay.ClickThrough);
 				}
 			}
 

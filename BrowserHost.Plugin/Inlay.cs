@@ -14,6 +14,8 @@ namespace BrowserHost.Plugin
 		public string Url;
 		public Vector2 Size;
 		public Guid Guid;
+		public bool Locked;
+		public bool ClickThrough;
 
 		private RenderProcess renderProcess;
 		private TextureWrap textureWrap;
@@ -52,7 +54,7 @@ namespace BrowserHost.Plugin
 		public void Render()
 		{
 			// TODO: Renderer can take some time to spin up properly, should add a loading state.
-			ImGui.Begin($"{Name}###{Guid}", ImGuiWindowFlags.NoCollapse);
+			ImGui.Begin($"{Name}###{Guid}", GetWindowFlags());
 			if (textureWrap != null)
 			{
 				HandleMouseEvent();
@@ -65,6 +67,19 @@ namespace BrowserHost.Plugin
 				ImGui.Image(textureWrap.ImGuiHandle, new Vector2(textureWrap.Width, textureWrap.Height));
 			}
 			ImGui.End();
+		}
+
+		private ImGuiWindowFlags GetWindowFlags()
+		{
+			var flags = ImGuiWindowFlags.None
+				| ImGuiWindowFlags.NoCollapse
+				| ImGuiWindowFlags.NoScrollbar
+				| ImGuiWindowFlags.NoScrollWithMouse;
+
+			if (Locked) { flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize; }
+			if (ClickThrough) { flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav; }
+
+			return flags;
 		}
 
 		// TODO: Dedupe when mouse isn't moving (will need to check change manually, imgui posprev isn't working).
