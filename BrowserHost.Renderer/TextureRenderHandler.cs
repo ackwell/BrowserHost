@@ -6,6 +6,7 @@ using CefSharp.Structs;
 using D3D11 = SharpDX.Direct3D11;
 using DXGI = SharpDX.DXGI;
 using System;
+using System.Collections.Concurrent;
 
 namespace BrowserHost.Renderer
 {
@@ -16,6 +17,7 @@ namespace BrowserHost.Renderer
 
 		private D3D11.Texture2D texture;
 		private D3D11.Texture2D popupTexture;
+		private ConcurrentBag<D3D11.Texture2D> obsoluteTextures = new ConcurrentBag<D3D11.Texture2D>();
 
 		private bool popupVisible;
 		private Rect popupRect;
@@ -49,12 +51,11 @@ namespace BrowserHost.Renderer
 
 		public void Resize(System.Drawing.Size size)
 		{
-			var oldTexture = texture;
+			if (texture != null) { obsoluteTextures.Add(texture); }
 			texture = BuildViewTexture(size);
 			// Need to clear the cached handle value
 			// TODO: Maybe I should just avoid the lazy cache and do it eagerly on texture build.
 			sharedTextureHandle = IntPtr.Zero;
-			if (oldTexture != null) { oldTexture.Dispose(); }
 		}
 
 		private D3D11.Texture2D BuildViewTexture(System.Drawing.Size size)
@@ -95,60 +96,63 @@ namespace BrowserHost.Renderer
 
 		public Rect GetViewRect()
 		{
-			// TODO: How is resizing going to work?
+			// There's a very small chance that OnPaint's cleanup will delete the current texture midway through this function -
+			// Try a few times just in case before failing out with an obviously-wrong value
+			// hi adam
+			for (var i = 0; i < 5; i++)
+			{
+				try { return GetViewRectInternal(); }
+				catch (NullReferenceException) { }
+			}
+			return new Rect(0, 0, 1, 1);
+		}
+
+		private Rect GetViewRectInternal()
+		{
 			var texDesc = texture.Description;
 			return new Rect(0, 0, texDesc.Width, texDesc.Height);
 		}
 
 		public void OnPaint(PaintElementType type, Rect dirtyRect, IntPtr buffer, int width, int height)
 		{
+			var targetTexture = type switch
+			{
+				PaintElementType.Popup => popupTexture,
+				_ => texture,
+			};
+
+			var texDesc = targetTexture.Description;
+
 			var rowPitch = width * bytesPerPixel;
 			var depthPitch = rowPitch * height;
 			var sourceRegionPtr = buffer + (dirtyRect.X * bytesPerPixel) + (dirtyRect.Y * rowPitch);
-			var destinationRegion = new D3D11.ResourceRegion(dirtyRect.X, dirtyRect.Y, 0, dirtyRect.X + dirtyRect.Width, dirtyRect.Y + dirtyRect.Height, 1);
-
-			switch (type)
+			var destinationRegion = new D3D11.ResourceRegion()
 			{
-				case PaintElementType.View:
-					if (width != texture.Description.Width || height != texture.Description.Height)
-					{
-						// TODO: Render something other than literally nothing while waiting for size to settle.
-						break;
-					}
-					OnPaintView(sourceRegionPtr, rowPitch, depthPitch, destinationRegion);
-					break;
-				case PaintElementType.Popup:
-					OnPaintPopup(sourceRegionPtr, rowPitch, depthPitch, destinationRegion);
-					break;
-			}
-		}
+				Top = Math.Min(dirtyRect.Y, texDesc.Height),
+				Bottom = Math.Min(dirtyRect.Y + dirtyRect.Height, texDesc.Height),
+				Left = Math.Min(dirtyRect.X, texDesc.Width),
+				Right = Math.Min(dirtyRect.X + dirtyRect.Width, texDesc.Width),
+				Front = 0,
+				Back = 1,
+			};
 
-		private void OnPaintView(IntPtr source, int sourceRowPitch, int sourceDepthPitch, D3D11.ResourceRegion destinationRegion)
-		{
-			var context = texture.Device.ImmediateContext;
+			var context = targetTexture.Device.ImmediateContext;
+			context.UpdateSubresource(targetTexture, 0, destinationRegion, sourceRegionPtr, rowPitch, depthPitch);
 
-			// TODO: This likely has some avenues for optimisation still.
-			//   - STAGING texture w/ CopySubresourceRegion
-			//   - Maps?
-			//   - Texture array for layering popup (would shared permit this?)
-			context.UpdateSubresource(texture, 0, destinationRegion, source, sourceRowPitch, sourceDepthPitch);
+			// Only need to do composition + flush on primary texture
+			if (type != PaintElementType.View) { return; }
 
 			if (popupVisible)
 			{
-				context.CopySubresourceRegion(popupTexture, 0, null, texture, 0, popupRect.X, popupRect.Y);
+				context.CopySubresourceRegion(popupTexture, 0, null, targetTexture, 0, popupRect.X, popupRect.Y);
 			}
 
 			context.Flush();
-		}
 
-		private void OnPaintPopup(IntPtr source, int sourceRowPitch, int sourceDepthPitch, D3D11.ResourceRegion destinationRegion)
-		{
-			var context = popupTexture.Device.ImmediateContext;
-
-			// See comment in `OnPaintView` re: optimisation of rendering.
-			context.UpdateSubresource(popupTexture, 0, destinationRegion, source, sourceRowPitch, sourceDepthPitch);
-
-			// We're not flushing here, relying on the primary view to flush for us.
+			// Rendering is complete, clean up any obsolute textures textures
+			var textures = obsoluteTextures;
+			obsoluteTextures = new ConcurrentBag<D3D11.Texture2D>();
+			foreach (var texture in textures) { texture.Dispose(); }
 		}
 
 		public void OnAcceleratedPaint(PaintElementType type, Rect dirtyRect, IntPtr sharedHandle)

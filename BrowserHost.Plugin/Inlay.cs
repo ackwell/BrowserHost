@@ -102,7 +102,9 @@ namespace BrowserHost.Plugin
 				Height = (int)Size.Y,
 			});
 
+			var oldTextureWrap = textureWrap;
 			textureWrap = BuildTextureWrap(response.TextureHandle);
+			oldTextureWrap.Dispose();
 		}
 
 		// TODO: This seems like a lot of junk to do every time we resize... is it possible to reuse some of this?

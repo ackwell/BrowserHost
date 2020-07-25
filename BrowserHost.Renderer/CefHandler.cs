@@ -13,6 +13,8 @@ namespace BrowserHost.Renderer
 				BrowserSubprocessPath = Path.Combine(cefAssemblyPath, "CefSharp.BrowserSubprocess.exe"),
 			};
 			settings.CefCommandLineArgs["autoplay-policy"] = "no-user-gesture-required";
+			settings.EnableAudio();
+			settings.SetOffScreenRenderingBestPerformanceArgs();
 
 			Cef.Initialize(settings, performDependencyCheck: false, browserProcessHandler: null);
 		}
