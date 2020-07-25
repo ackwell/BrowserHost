@@ -69,8 +69,10 @@ namespace BrowserHost.Common
 		public Guid Guid;
 		public float X;
 		public float Y;
-		// Down and up represent changes since the previous event, not current state
+		// The following button fields represent changes since the previous event, not current state
+		// TODO: May be approaching being advantageous for button->fields map
 		public MouseButton Down;
+		public MouseButton Double;
 		public MouseButton Up;
 	}
 

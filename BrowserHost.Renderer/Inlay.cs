@@ -82,8 +82,9 @@ namespace BrowserHost.Renderer
 			host.SendMouseMoveEvent(event_, false);
 
 			// Fire any relevant click events
-			// TODO: Handle clickCount
-			DecodeMouseButtons(request.Down).ForEach(button => host.SendMouseClickEvent(event_, button, false, 1));
+			var doubleClicks = DecodeMouseButtons(request.Double);
+			DecodeMouseButtons(request.Down)
+					.ForEach(button => host.SendMouseClickEvent(event_, button, false, doubleClicks.Contains(button) ? 2 : 1));
 			DecodeMouseButtons(request.Up).ForEach(button => host.SendMouseClickEvent(event_, button, true, 1));
 		}
 

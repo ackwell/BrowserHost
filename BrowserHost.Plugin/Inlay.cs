@@ -98,6 +98,7 @@ namespace BrowserHost.Plugin
 				X = mousePos.X,
 				Y = mousePos.Y,
 				Down = EncodeMouseButtons(io.MouseClicked),
+				Double = EncodeMouseButtons(io.MouseDoubleClicked),
 				Up = EncodeMouseButtons(io.MouseReleased),
 			};
 
