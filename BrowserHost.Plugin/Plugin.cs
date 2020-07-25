@@ -19,6 +19,7 @@ namespace BrowserHost.Plugin
 
 		private RenderProcess renderProcess;
 		private Thread inlayInitThread;
+		// TODO: The inlay dict will essentially form the backbone of the plugin, might be worth making static
 		private Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 
 		public void Initialize(DalamudPluginInterface pluginInterface)
@@ -32,7 +33,7 @@ namespace BrowserHost.Plugin
 
 			// Prep settings
 			// TODO: This may be worth doing in the init thread, it may be IO blocked on config down the road.
-			settings = new Settings();
+			settings = new Settings(inlays);
 
 			// Boot the render process
 			var pid = Process.GetCurrentProcess().Id;
@@ -49,6 +50,7 @@ namespace BrowserHost.Plugin
 		{
 			var inlay = new Inlay(renderProcess)
 			{
+				Guid = Guid.Parse("84B1C17A-666F-4ECD-ACD0-7C8EA335A362"),
 				Name = "Test UFO",
 				Url = "https://www.testufo.com/framerates#count=3&background=stars&pps=960",
 				Size = new Vector2(800, 800),

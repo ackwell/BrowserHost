@@ -13,8 +13,7 @@ namespace BrowserHost.Plugin
 		public string Name;
 		public string Url;
 		public Vector2 Size;
-
-		public Guid Guid { get; } = Guid.NewGuid();
+		public Guid Guid;
 
 		private RenderProcess renderProcess;
 		private TextureWrap textureWrap;
@@ -53,7 +52,7 @@ namespace BrowserHost.Plugin
 		public void Render()
 		{
 			// TODO: Renderer can take some time to spin up properly, should add a loading state.
-			ImGui.Begin($"{Name}##BrowserHostInlay");
+			ImGui.Begin($"{Name}###{Guid}", ImGuiWindowFlags.NoCollapse);
 			if (textureWrap != null)
 			{
 				HandleMouseEvent();
