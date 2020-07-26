@@ -10,30 +10,31 @@ namespace BrowserHost.Plugin
 {
 	class Inlay : IDisposable
 	{
-		public string Name;
-		public string Url;
-		public Vector2 Size;
-		public Guid Guid;
-		public bool Locked;
-		public bool ClickThrough;
+		public InlayConfiguration Config;
+
+		// TODO: Remove this, let imgui handle scale?
+		public Vector2 Size = new Vector2(100, 100);
 
 		private RenderProcess renderProcess;
 		private TextureWrap textureWrap;
 
 		private ImGuiMouseCursor cursor;
 
-		public Inlay(RenderProcess renderProcess)
+		public Inlay(RenderProcess renderProcess, InlayConfiguration config)
 		{
 			this.renderProcess = renderProcess;
+			Config = config;
 		}
 
 		public void Initialise()
 		{
+			// NOTE: If I let imgui handle size persistance, I can afford to nuke the init call and
+			// wait for first render tick to inform size.
 			// Build the inlay on the renderer
 			var response = renderProcess.Send<NewInlayResponse>(new NewInlayRequest()
 			{
-				Guid = Guid,
-				Url = Url,
+				Guid = Config.Guid,
+				Url = Config.Url,
 				Width = (int)Size.X,
 				Height = (int)Size.Y,
 			});
@@ -54,7 +55,7 @@ namespace BrowserHost.Plugin
 		public void Render()
 		{
 			// TODO: Renderer can take some time to spin up properly, should add a loading state.
-			ImGui.Begin($"{Name}###{Guid}", GetWindowFlags());
+			ImGui.Begin($"{Config.Name}###{Config.Guid}", GetWindowFlags());
 			if (textureWrap != null)
 			{
 				HandleMouseEvent();
@@ -76,8 +77,8 @@ namespace BrowserHost.Plugin
 				| ImGuiWindowFlags.NoScrollbar
 				| ImGuiWindowFlags.NoScrollWithMouse;
 
-			if (Locked) { flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize; }
-			if (ClickThrough) { flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav; }
+			if (Config.Locked) { flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize; }
+			if (Config.ClickThrough) { flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav; }
 
 			return flags;
 		}
@@ -94,7 +95,7 @@ namespace BrowserHost.Plugin
 
 			var request = new MouseEventRequest()
 			{
-				Guid = Guid,
+				Guid = Config.Guid,
 				X = mousePos.X,
 				Y = mousePos.Y,
 				Down = EncodeMouseButtons(io.MouseClicked),
@@ -117,7 +118,7 @@ namespace BrowserHost.Plugin
 
 			var response = renderProcess.Send<ResizeInlayResponse>(new ResizeInlayRequest()
 			{
-				Guid = Guid,
+				Guid = Config.Guid,
 				Width = (int)Size.X,
 				Height = (int)Size.Y,
 			});

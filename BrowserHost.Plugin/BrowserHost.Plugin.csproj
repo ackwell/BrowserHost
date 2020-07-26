@@ -71,6 +71,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Configuration.cs" />
     <Compile Include="DxHandler.cs" />
     <Compile Include="Inlay.cs" />
     <Compile Include="Plugin.cs" />

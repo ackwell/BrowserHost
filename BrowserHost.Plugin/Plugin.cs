@@ -19,7 +19,6 @@ namespace BrowserHost.Plugin
 
 		private RenderProcess renderProcess;
 		private Thread inlayInitThread;
-		// TODO: The inlay dict will essentially form the backbone of the plugin, might be worth making static
 		private Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 
 		public void Initialize(DalamudPluginInterface pluginInterface)
@@ -33,7 +32,8 @@ namespace BrowserHost.Plugin
 
 			// Prep settings
 			// TODO: This may be worth doing in the init thread, it may be IO blocked on config down the road.
-			settings = new Settings(inlays);
+			settings = new Settings(pluginInterface);
+			settings.InlayAdded += OnInlayAdded;
 
 			// Boot the render process
 			var pid = Process.GetCurrentProcess().Id;
@@ -48,17 +48,25 @@ namespace BrowserHost.Plugin
 
 		private void InitialiseInlays()
 		{
-			var inlay = new Inlay(renderProcess)
+			var inlay = new Inlay(renderProcess, new InlayConfiguration()
 			{
 				Guid = Guid.Parse("84B1C17A-666F-4ECD-ACD0-7C8EA335A362"),
 				Name = "Test UFO",
 				Url = "https://www.testufo.com/framerates#count=3&background=stars&pps=960",
-				Size = new Vector2(800, 800),
-			};
+			});
 			// TODO: This is essentially a blocking call on IPC to the render process.
 			//       When handling >1, look into something a-la promise.all for this.
 			inlay.Initialise();
-			inlays.Add(inlay.Guid, inlay);
+			inlays.Add(inlay.Config.Guid, inlay);
+		}
+
+		private void OnInlayAdded(object sender, InlayConfiguration config)
+		{
+			// TODO: This is duped with init thread logic above
+			// ... Maybe I could just make settings fire inlay added for stuff on init? Hm.
+			var inlay = new Inlay(renderProcess, config);
+			inlay.Initialise();
+			inlays.Add(inlay.Config.Guid, inlay);
 		}
 
 		private object HandleIpcRequest(object sender, UpstreamIpcRequest request)
