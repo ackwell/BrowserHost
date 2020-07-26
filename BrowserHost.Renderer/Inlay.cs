@@ -84,7 +84,7 @@ namespace BrowserHost.Renderer
 
 			// Ensure the mouse position is up to date
 			// TODO: the `false` is mouseLeave, which may be what we want for moving off-window? Research.
-			host.SendMouseMoveEvent(event_, false);
+			host.SendMouseMoveEvent(event_, request.Leaving);
 
 			// Fire any relevant click events
 			var doubleClicks = DecodeMouseButtons(request.Double);

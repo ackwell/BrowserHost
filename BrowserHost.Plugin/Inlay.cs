@@ -18,6 +18,7 @@ namespace BrowserHost.Plugin
 		private RenderProcess renderProcess;
 		private TextureWrap textureWrap;
 
+		private bool mouseInWindow;
 		private ImGuiMouseCursor cursor;
 
 		public Inlay(RenderProcess renderProcess, InlayConfiguration config)
@@ -82,11 +83,23 @@ namespace BrowserHost.Plugin
 			var mousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
 			var windowSize = ImGui.GetWindowContentRegionMax() - ImGui.GetWindowContentRegionMin(); ;
 
-			// If the cursor is outside the window, do nothing
+			// If the cursor is outside the window, send a final mouse leave then noop
 			if (mousePos.X < 0 || mousePos.Y < 0 || mousePos.X > windowSize.X || mousePos.Y > windowSize.Y)
 			{
+				if (mouseInWindow)
+				{
+					mouseInWindow = false;
+					renderProcess.Send(new MouseEventRequest()
+					{
+						Guid = Config.Guid,
+						X = mousePos.X,
+						Y = mousePos.Y,
+						Leaving = true,
+					});
+				}
 				return;
 			}
+			mouseInWindow = true;
 
 			// TODO: Overlapping windows will likely cause nondeterministic cursor handling here.
 			ImGui.SetMouseCursor(cursor);
