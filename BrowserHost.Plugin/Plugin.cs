@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
-using System.Threading;
 
 namespace BrowserHost.Plugin
 {
@@ -46,8 +45,6 @@ namespace BrowserHost.Plugin
 
 		private void OnInlayAdded(object sender, InlayConfiguration config)
 		{
-			// TODO: This is duped with init thread logic above
-			// ... Maybe I could just make settings fire inlay added for stuff on init? Hm.
 			var inlay = new Inlay(renderProcess, config);
 			inlays.Add(inlay.Config.Guid, inlay);
 		}

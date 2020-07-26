@@ -83,13 +83,11 @@ namespace BrowserHost.Renderer
 
 		public ScreenInfo? GetScreenInfo()
 		{
-			// TODO: Cache?
 			return new ScreenInfo() { DeviceScaleFactor = 1.0F };
 		}
 
 		public bool GetScreenPoint(int viewX, int viewY, out int screenX, out int screenY)
 		{
-			// TODO: Should we bother with this?
 			screenX = viewX;
 			screenY = viewY;
 
@@ -167,8 +165,6 @@ namespace BrowserHost.Renderer
 		public void OnPopupShow(bool show)
 		{
 			popupVisible = show;
-			// TODO: May need to set a "clean up" flag when true->false to re-render the popup surface as well as dirty rect,
-			//       once I start dealing with the dirty rect.
 		}
 
 		public void OnPopupSize(Rect rect)

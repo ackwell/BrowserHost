@@ -5,7 +5,6 @@ using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
 using System;
 using System.Numerics;
-using Dalamud.Plugin;
 
 namespace BrowserHost.Plugin
 {
@@ -73,7 +72,6 @@ namespace BrowserHost.Plugin
 			return flags;
 		}
 
-		// TODO: Don't send mouse input if mouse is outside bound of texture. Might need to signal a frame leave?
 		private void HandleMouseEvent()
 		{
 			// Render proc won't be ready on first boot
@@ -162,7 +160,6 @@ namespace BrowserHost.Plugin
 			size = currentSize;
 		}
 
-		// TODO: This seems like a lot of junk to do every time we resize... is it possible to reuse some of this?
 		private TextureWrap BuildTextureWrap(IntPtr textureHandle)
 		{
 			var texture = DxHandler.Device.OpenSharedResource<D3D11.Texture2D>(textureHandle);

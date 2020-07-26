@@ -127,9 +127,7 @@ namespace BrowserHost.Renderer
 				case MouseEventRequest mouseMoveRequest:
 				{
 					var inlay = inlays[mouseMoveRequest.Guid];
-					// TODO: also yikes lmao
-					if (inlay == null) { return null; }
-					inlay.HandleMouseEvent(mouseMoveRequest);
+					inlay?.HandleMouseEvent(mouseMoveRequest);
 					return null;
 				}
 

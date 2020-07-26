@@ -50,7 +50,6 @@ namespace BrowserHost.Renderer
 				WindowlessFrameRate = 60,
 			};
 
-			// TODO: Proper resize handling
 			// WindowInfo gets ignored sometimes, be super sure:
 			browser.BrowserInitialized += (sender, args) => { browser.Size = size; };
 
@@ -83,7 +82,6 @@ namespace BrowserHost.Renderer
 			var host = browser.GetBrowserHost();
 
 			// Ensure the mouse position is up to date
-			// TODO: the `false` is mouseLeave, which may be what we want for moving off-window? Research.
 			host.SendMouseMoveEvent(event_, request.Leaving);
 
 			// Fire any relevant click events
