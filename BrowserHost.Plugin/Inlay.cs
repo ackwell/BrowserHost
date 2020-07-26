@@ -5,6 +5,7 @@ using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
 using System;
 using System.Numerics;
+using Dalamud.Plugin;
 
 namespace BrowserHost.Plugin
 {
@@ -53,10 +54,6 @@ namespace BrowserHost.Plugin
 			{
 				HandleMouseEvent();
 
-				// TODO: Overlapping windows will likely cause nondeterministic cursor handling here.
-				// Need to ignore cursor if mouse outside window, and work out how (and if) i deal with overlap.
-				ImGui.SetMouseCursor(cursor);
-
 				ImGui.Image(textureWrap.ImGuiHandle, new Vector2(textureWrap.Width, textureWrap.Height));
 			}
 			ImGui.End();
@@ -75,7 +72,6 @@ namespace BrowserHost.Plugin
 			return flags;
 		}
 
-		// TODO: Dedupe when mouse isn't moving (will need to check change manually, imgui posprev isn't working).
 		// TODO: Don't send mouse input if mouse is outside bound of texture. Might need to signal a frame leave?
 		private void HandleMouseEvent()
 		{
@@ -84,21 +80,41 @@ namespace BrowserHost.Plugin
 
 			var io = ImGui.GetIO();
 			var mousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
+			var windowSize = ImGui.GetWindowContentRegionMax() - ImGui.GetWindowContentRegionMin(); ;
 
-			var request = new MouseEventRequest()
+			// If the cursor is outside the window, do nothing
+			if (mousePos.X < 0 || mousePos.Y < 0 || mousePos.X > windowSize.X || mousePos.Y > windowSize.Y)
+			{
+				return;
+			}
+
+			// TODO: Overlapping windows will likely cause nondeterministic cursor handling here.
+			ImGui.SetMouseCursor(cursor);
+
+			var down = EncodeMouseButtons(io.MouseClicked);
+			var double_ = EncodeMouseButtons(io.MouseDoubleClicked);
+			var up = EncodeMouseButtons(io.MouseReleased);
+			var wheelX = io.MouseWheelH;
+			var wheelY = io.MouseWheel;
+
+			// If the event boils down to no change, bail before sending
+			if (io.MouseDelta == Vector2.Zero && down == MouseButton.None && double_ == MouseButton.None && up == MouseButton.None && wheelX == 0 && wheelY == 0)
+			{
+				return;
+			}
+
+			// TODO: Either this or the entire handler function should be asynchronous so we're not blocking the entire draw thread
+			renderProcess.Send(new MouseEventRequest()
 			{
 				Guid = Config.Guid,
 				X = mousePos.X,
 				Y = mousePos.Y,
-				Down = EncodeMouseButtons(io.MouseClicked),
-				Double = EncodeMouseButtons(io.MouseDoubleClicked),
-				Up = EncodeMouseButtons(io.MouseReleased),
-				WheelX = io.MouseWheelH,
-				WheelY = io.MouseWheel,
-			};
-
-			// TODO: Either this or the entire handler function should be asynchronous so we're not blocking the entire draw thread
-			renderProcess.Send(request);
+				Down = down,
+				Double = double_,
+				Up = up,
+				WheelX = wheelX,
+				WheelY = wheelY,
+			});
 		}
 
 		private void HandleWindowSize()
