@@ -93,6 +93,8 @@ namespace BrowserHost.Plugin
 				Down = EncodeMouseButtons(io.MouseClicked),
 				Double = EncodeMouseButtons(io.MouseDoubleClicked),
 				Up = EncodeMouseButtons(io.MouseReleased),
+				WheelX = io.MouseWheelH,
+				WheelY = io.MouseWheel,
 			};
 
 			// TODO: Either this or the entire handler function should be asynchronous so we're not blocking the entire draw thread

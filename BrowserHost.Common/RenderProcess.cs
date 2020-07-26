@@ -82,6 +82,8 @@ namespace BrowserHost.Common
 		public MouseButton Down;
 		public MouseButton Double;
 		public MouseButton Up;
+		public float WheelX;
+		public float WheelY;
 	}
 
 	#endregion

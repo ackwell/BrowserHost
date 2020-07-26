@@ -91,6 +91,10 @@ namespace BrowserHost.Renderer
 			DecodeMouseButtons(request.Down)
 					.ForEach(button => host.SendMouseClickEvent(event_, button, false, doubleClicks.Contains(button) ? 2 : 1));
 			DecodeMouseButtons(request.Up).ForEach(button => host.SendMouseClickEvent(event_, button, true, 1));
+
+			// CEF treats the wheel delta as mode 0, pixels. Bump up the numbers to match typical in-browser experience.
+			var deltaMult = 100;
+			host.SendMouseWheelEvent(event_, (int)request.WheelX * deltaMult, (int)request.WheelY * deltaMult);
 		}
 
 		public void Resize(Size size)
