@@ -54,6 +54,7 @@ namespace BrowserHost.Plugin
 			};
 			config.Inlays.Add(inlayConfig);
 			InlayAdded?.Invoke(this, inlayConfig);
+			SaveSettings();
 		}
 
 		private void NavigateInlay(InlayConfiguration inlayConfig)
@@ -66,16 +67,19 @@ namespace BrowserHost.Plugin
 		{
 			InlayRemoved?.Invoke(this, inlayConfig);
 			config.Inlays.Remove(inlayConfig);
+			SaveSettings();
 		}
 
 		private void DebouncedSaveSettings()
 		{
 			saveDebounceTimer?.Dispose();
-			saveDebounceTimer = new Timer(SaveSettings, null, 1000, Timeout.Infinite);
+			saveDebounceTimer = new Timer(_ => SaveSettings(), null, 1000, Timeout.Infinite);
 		}
 
-		private void SaveSettings(object state)
+		private void SaveSettings()
 		{
+			saveDebounceTimer?.Dispose();
+			saveDebounceTimer = null;
 			pluginInterface.SavePluginConfig(config);
 		}
 
