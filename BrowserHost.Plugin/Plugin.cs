@@ -18,7 +18,6 @@ namespace BrowserHost.Plugin
 		private Settings settings;
 
 		private RenderProcess renderProcess;
-		private Thread inlayInitThread;
 		private Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 
 		public void Initialize(DalamudPluginInterface pluginInterface)
@@ -30,32 +29,18 @@ namespace BrowserHost.Plugin
 			this.pluginInterface = pluginInterface;
 			pluginInterface.UiBuilder.OnBuildUi += Render;
 
-			// Prep settings
-			// TODO: This may be worth doing in the init thread, it may be IO blocked on config down the road.
-			settings = new Settings(pluginInterface);
-			settings.InlayAdded += OnInlayAdded;
-			settings.InlayRemoved += OnInlayRemoved;
-
-			// Boot the render process
+			// Boot the render process. This has to be done before initialising settings to prevent a
+			// race conditionson inlays recieving a null reference.
 			var pid = Process.GetCurrentProcess().Id;
 			renderProcess = new RenderProcess(pid);
 			renderProcess.Recieve += HandleIpcRequest;
 			renderProcess.Start();
 
-			// Init inlays in a seperate thread so we're not blocking the rest of dalamud
-			inlayInitThread = new Thread(InitialiseInlays);
-			inlayInitThread.Start();
-		}
-
-		private void InitialiseInlays()
-		{
-			var inlay = new Inlay(renderProcess, new InlayConfiguration()
-			{
-				Guid = Guid.Parse("84B1C17A-666F-4ECD-ACD0-7C8EA335A362"),
-				Name = "Test UFO",
-				Url = "https://www.testufo.com/framerates#count=3&background=stars&pps=960",
-			});
-			inlays.Add(inlay.Config.Guid, inlay);
+			// Prep settings
+			settings = new Settings(pluginInterface);
+			settings.InlayAdded += OnInlayAdded;
+			settings.InlayRemoved += OnInlayRemoved;
+			settings.Initialise();
 		}
 
 		private void OnInlayAdded(object sender, InlayConfiguration config)
@@ -91,7 +76,7 @@ namespace BrowserHost.Plugin
 
 		private void Render()
 		{
-			settings.Render();
+			settings?.Render();
 
 			ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
 
@@ -102,7 +87,6 @@ namespace BrowserHost.Plugin
 
 		public void Dispose()
 		{
-			inlayInitThread.Join();
 			foreach (var inlay in inlays.Values) { inlay.Dispose(); }
 			inlays.Clear();
 

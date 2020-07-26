@@ -3,6 +3,8 @@ using ImGuiNET;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BrowserHost.Plugin
 {
@@ -17,11 +19,26 @@ namespace BrowserHost.Plugin
 
 		private Configuration config;
 
+		private Timer saveDebounceTimer;
+
 		public Settings(DalamudPluginInterface pluginInterface)
 		{
 			this.pluginInterface = pluginInterface;
+		}
 
-			config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+		public void Initialise()
+		{
+			// Running this in a thread to avoid blocking the plugin init with potentially expensive stuff
+			Task.Run(() =>
+			{
+				config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+
+				// Hydrate any inlays in the config
+				foreach (var inlayConfig in config.Inlays)
+				{
+					InlayAdded?.Invoke(this, inlayConfig);
+				}
+			});
 		}
 
 		public void Dispose() { }
@@ -44,9 +61,20 @@ namespace BrowserHost.Plugin
 			config.Inlays.Remove(inlayConfig);
 		}
 
+		private void DebouncedSaveSettings()
+		{
+			saveDebounceTimer?.Dispose();
+			saveDebounceTimer = new Timer(SaveSettings, null, 1000, Timeout.Infinite);
+		}
+
+		private void SaveSettings(object state)
+		{
+			pluginInterface.SavePluginConfig(config);
+		}
+
 		public void Render()
 		{
-			if (!open) { return; }
+			if (!open || config == null) { return; }
 
 			var windowFlags = ImGuiWindowFlags.None
 				| ImGuiWindowFlags.NoScrollbar
@@ -58,30 +86,39 @@ namespace BrowserHost.Plugin
 			var footerHeight = 30; // I hate this. TODO: Calc from GetStyle() somehow?
 			ImGui.BeginChild("inlays", new Vector2(0, contentArea.Y - footerHeight));
 
+			var dirty = false;
 			var toRemove = new List<InlayConfiguration>();
-			foreach (var inlay in config.Inlays)
+			foreach (var inlayConfig in config.Inlays)
 			{
 				var headerOpen = true;
 
-				if (ImGui.CollapsingHeader($"{inlay.Name}###header-{inlay.Guid}", ref headerOpen))
+				if (ImGui.CollapsingHeader($"{inlayConfig.Name}###header-{inlayConfig.Guid}", ref headerOpen))
 				{
-					ImGui.PushID(inlay.Guid.ToString());
+					ImGui.PushID(inlayConfig.Guid.ToString());
 
-					ImGui.InputText("Name", ref inlay.Name, 100);
-					ImGui.InputText("URL", ref inlay.Url, 1000);
+					ImGui.InputText("Name", ref inlayConfig.Name, 100);
+					dirty |= ImGui.IsItemEdited();
 
-					ImGui.Checkbox("Locked", ref inlay.Locked);
+					ImGui.InputText("URL", ref inlayConfig.Url, 1000);
+					dirty |= ImGui.IsItemEdited();
+
+					ImGui.Checkbox("Locked", ref inlayConfig.Locked);
+					dirty |= ImGui.IsItemEdited();
+
 					ImGui.SameLine();
-					ImGui.Checkbox("Click Through", ref inlay.ClickThrough);
+					ImGui.Checkbox("Click Through", ref inlayConfig.ClickThrough);
+					dirty |= ImGui.IsItemEdited();
+
 					ImGui.Spacing();
 
 					ImGui.PopID();
 				}
 
-				if (!headerOpen) { toRemove.Add(inlay); }
+				if (!headerOpen) { toRemove.Add(inlayConfig); }
 			}
 
-			foreach (var inlay in toRemove) { RemoveInlay(inlay); }
+			foreach (var inlayConfig in toRemove) { RemoveInlay(inlayConfig); }
+			if (dirty) { DebouncedSaveSettings();  }
 
 			ImGui.EndChild();
 			ImGui.Separator();
