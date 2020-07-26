@@ -62,11 +62,20 @@ namespace BrowserHost.Plugin
 		private ImGuiWindowFlags GetWindowFlags()
 		{
 			var flags = ImGuiWindowFlags.None
+				| ImGuiWindowFlags.NoTitleBar
 				| ImGuiWindowFlags.NoCollapse
 				| ImGuiWindowFlags.NoScrollbar
-				| ImGuiWindowFlags.NoScrollWithMouse;
+				| ImGuiWindowFlags.NoScrollWithMouse
+				| ImGuiWindowFlags.NoBringToFrontOnFocus
+				| ImGuiWindowFlags.NoFocusOnAppearing;
 
-			if (Config.Locked) { flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize; }
+			if (Config.Locked)
+			{
+				flags |= ImGuiWindowFlags.None
+					| ImGuiWindowFlags.NoMove
+					| ImGuiWindowFlags.NoResize
+					| ImGuiWindowFlags.NoBackground;
+			}
 			if (Config.ClickThrough) { flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav; }
 
 			return flags;
@@ -75,7 +84,8 @@ namespace BrowserHost.Plugin
 		private void HandleMouseEvent()
 		{
 			// Render proc won't be ready on first boot
-			if (renderProcess == null) { return; }
+			// Totally skip mouse handling for click through inlays, as well
+			if (renderProcess == null || Config.ClickThrough) { return; }
 
 			var io = ImGui.GetIO();
 			var mousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
