@@ -1,11 +1,10 @@
 ﻿using BrowserHost.Common;
 using ImGuiNET;
+using ImGuiScene;
 using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
 using System;
-using ImGuiScene;
 using System.Numerics;
-using Dalamud.Plugin;
 
 namespace BrowserHost.Plugin
 {
@@ -29,6 +28,7 @@ namespace BrowserHost.Plugin
 		public void Dispose()
 		{
 			textureWrap.Dispose();
+			renderProcess.Send(new RemoveInlayRequest() { Guid = Config.Guid });
 		}
 
 		public void SetCursor(Cursor cursor)

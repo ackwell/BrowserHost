@@ -48,6 +48,12 @@ namespace BrowserHost.Common
 		public IntPtr TextureHandle;
 	}
 
+	[Serializable]
+	public class RemoveInlayRequest : DownstreamIpcRequest
+	{
+		public Guid Guid;
+	}
+
 	public enum MouseButton
 	{
 		None = 0,

@@ -101,6 +101,22 @@ namespace BrowserHost.Renderer
 					return new TextureHandleResponse() { TextureHandle = inlay.SharedTextureHandle };
 				}
 
+				case ResizeInlayRequest resizeInlayRequest:
+				{
+					var inlay = inlays[resizeInlayRequest.Guid];
+					if (inlay == null) { return null; }
+					inlay.Resize(new Size(resizeInlayRequest.Width, resizeInlayRequest.Height));
+					return new TextureHandleResponse() { TextureHandle = inlay.SharedTextureHandle };
+				}
+
+				case RemoveInlayRequest removeInlayRequest:
+				{
+					var inlay = inlays[removeInlayRequest.Guid];
+					inlays.Remove(removeInlayRequest.Guid);
+					inlay.Dispose();
+					return null;
+				}
+
 				case MouseEventRequest mouseMoveRequest:
 				{
 					var inlay = inlays[mouseMoveRequest.Guid];
@@ -108,14 +124,6 @@ namespace BrowserHost.Renderer
 					if (inlay == null) { return null; }
 					inlay.HandleMouseEvent(mouseMoveRequest);
 					return null;
-				}
-
-				case ResizeInlayRequest resizeInlayRequest:
-				{
-					var inlay = inlays[resizeInlayRequest.Guid];
-					if (inlay == null) { return null; }
-					inlay.Resize(new Size(resizeInlayRequest.Width, resizeInlayRequest.Height));
-					return new TextureHandleResponse() { TextureHandle = inlay.SharedTextureHandle };
 				}
 
 				default:

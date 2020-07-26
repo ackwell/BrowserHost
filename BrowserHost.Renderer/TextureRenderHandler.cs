@@ -47,6 +47,8 @@ namespace BrowserHost.Renderer
 		public void Dispose()
 		{
 			texture.Dispose();
+			if (popupTexture != null) { popupTexture.Dispose(); }
+			foreach (var texture in obsoluteTextures) { texture.Dispose(); }
 		}
 
 		public void Resize(System.Drawing.Size size)

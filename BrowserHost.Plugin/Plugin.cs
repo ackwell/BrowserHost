@@ -34,6 +34,7 @@ namespace BrowserHost.Plugin
 			// TODO: This may be worth doing in the init thread, it may be IO blocked on config down the road.
 			settings = new Settings(pluginInterface);
 			settings.InlayAdded += OnInlayAdded;
+			settings.InlayRemoved += OnInlayRemoved;
 
 			// Boot the render process
 			var pid = Process.GetCurrentProcess().Id;
@@ -63,6 +64,13 @@ namespace BrowserHost.Plugin
 			// ... Maybe I could just make settings fire inlay added for stuff on init? Hm.
 			var inlay = new Inlay(renderProcess, config);
 			inlays.Add(inlay.Config.Guid, inlay);
+		}
+
+		private void OnInlayRemoved(object sender, Guid guid)
+		{
+			var inlay = inlays[guid];
+			inlays.Remove(guid);
+			inlay.Dispose();
 		}
 
 		private object HandleIpcRequest(object sender, UpstreamIpcRequest request)
