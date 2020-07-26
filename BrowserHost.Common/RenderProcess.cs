@@ -35,11 +35,6 @@ namespace BrowserHost.Common
 	}
 
 	[Serializable]
-	public class NewInlayResponse {
-		public IntPtr TextureHandle;
-	}
-
-	[Serializable]
 	public class ResizeInlayRequest : DownstreamIpcRequest
 	{
 		public Guid Guid;
@@ -48,7 +43,7 @@ namespace BrowserHost.Common
 	}
 
 	[Serializable]
-	public class ResizeInlayResponse
+	public class TextureHandleResponse
 	{
 		public IntPtr TextureHandle;
 	}

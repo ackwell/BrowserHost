@@ -5,6 +5,7 @@ using D3D11 = SharpDX.Direct3D11;
 using System;
 using ImGuiScene;
 using System.Numerics;
+using Dalamud.Plugin;
 
 namespace BrowserHost.Plugin
 {
@@ -12,8 +13,7 @@ namespace BrowserHost.Plugin
 	{
 		public InlayConfiguration Config;
 
-		// TODO: Remove this, let imgui handle scale?
-		public Vector2 Size = new Vector2(100, 100);
+		private Vector2 size;
 
 		private RenderProcess renderProcess;
 		private TextureWrap textureWrap;
@@ -24,22 +24,6 @@ namespace BrowserHost.Plugin
 		{
 			this.renderProcess = renderProcess;
 			Config = config;
-		}
-
-		public void Initialise()
-		{
-			// NOTE: If I let imgui handle size persistance, I can afford to nuke the init call and
-			// wait for first render tick to inform size.
-			// Build the inlay on the renderer
-			var response = renderProcess.Send<NewInlayResponse>(new NewInlayRequest()
-			{
-				Guid = Config.Guid,
-				Url = Config.Url,
-				Width = (int)Size.X,
-				Height = (int)Size.Y,
-			});
-
-			textureWrap = BuildTextureWrap(response.TextureHandle);
 		}
 
 		public void Dispose()
@@ -56,10 +40,12 @@ namespace BrowserHost.Plugin
 		{
 			// TODO: Renderer can take some time to spin up properly, should add a loading state.
 			ImGui.Begin($"{Config.Name}###{Config.Guid}", GetWindowFlags());
+
+			HandleResize();
+
 			if (textureWrap != null)
 			{
 				HandleMouseEvent();
-				HandleResize();
 
 				// TODO: Overlapping windows will likely cause nondeterministic cursor handling here.
 				// Need to ignore cursor if mouse outside window, and work out how (and if) i deal with overlap.
@@ -110,22 +96,33 @@ namespace BrowserHost.Plugin
 		private void HandleResize()
 		{
 			var currentSize = ImGui.GetWindowContentRegionMax() - ImGui.GetWindowContentRegionMin();
-			if (currentSize == Size) { return; }
+			if (currentSize == size) { return; }
 
-			// TODO: Wonder if I should just use imgui's .ini as the SOT for the size, and wait a frame before rendering to fetch?
-			//       Alternatively, might be a _lot_ of junk in the ini doing that way, so json config might be "cleaner".
-			Size = currentSize;
+			// If there isn't a size yet, we haven't rendered at all - boot up an inlay in the render process
+			// TODO: Edge case - if a user _somehow_ makes the size zero, this will freak out and generate a new render inlay
+			// TODO: Maybe consolidate the request types? dunno.
+			var request = size == Vector2.Zero
+				? new NewInlayRequest()
+				{
+					Guid = Config.Guid,
+					Url = Config.Url,
+					Width = (int)currentSize.X,
+					Height = (int)currentSize.Y,
+				}
+				: new ResizeInlayRequest()
+				{
+					Guid = Config.Guid,
+					Width = (int)currentSize.X,
+					Height = (int)currentSize.Y,
+				} as DownstreamIpcRequest;
 
-			var response = renderProcess.Send<ResizeInlayResponse>(new ResizeInlayRequest()
-			{
-				Guid = Config.Guid,
-				Width = (int)Size.X,
-				Height = (int)Size.Y,
-			});
+			var response = renderProcess.Send<TextureHandleResponse>(request);
 
 			var oldTextureWrap = textureWrap;
 			textureWrap = BuildTextureWrap(response.TextureHandle);
-			oldTextureWrap.Dispose();
+			if (oldTextureWrap != null) { oldTextureWrap.Dispose(); }
+
+			size = currentSize;
 		}
 
 		// TODO: This seems like a lot of junk to do every time we resize... is it possible to reuse some of this?

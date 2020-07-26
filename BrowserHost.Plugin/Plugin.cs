@@ -54,9 +54,6 @@ namespace BrowserHost.Plugin
 				Name = "Test UFO",
 				Url = "https://www.testufo.com/framerates#count=3&background=stars&pps=960",
 			});
-			// TODO: This is essentially a blocking call on IPC to the render process.
-			//       When handling >1, look into something a-la promise.all for this.
-			inlay.Initialise();
 			inlays.Add(inlay.Config.Guid, inlay);
 		}
 
@@ -65,7 +62,6 @@ namespace BrowserHost.Plugin
 			// TODO: This is duped with init thread logic above
 			// ... Maybe I could just make settings fire inlay added for stuff on init? Hm.
 			var inlay = new Inlay(renderProcess, config);
-			inlay.Initialise();
 			inlays.Add(inlay.Config.Guid, inlay);
 		}
 

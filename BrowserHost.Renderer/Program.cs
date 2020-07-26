@@ -98,7 +98,7 @@ namespace BrowserHost.Renderer
 							Cursor = cursor
 						});
 					};
-					return new NewInlayResponse() { TextureHandle = inlay.SharedTextureHandle };
+					return new TextureHandleResponse() { TextureHandle = inlay.SharedTextureHandle };
 				}
 
 				case MouseEventRequest mouseMoveRequest:
@@ -115,7 +115,7 @@ namespace BrowserHost.Renderer
 					var inlay = inlays[resizeInlayRequest.Guid];
 					if (inlay == null) { return null; }
 					inlay.Resize(new Size(resizeInlayRequest.Width, resizeInlayRequest.Height));
-					return new ResizeInlayResponse() { TextureHandle = inlay.SharedTextureHandle };
+					return new TextureHandleResponse() { TextureHandle = inlay.SharedTextureHandle };
 				}
 
 				default:
