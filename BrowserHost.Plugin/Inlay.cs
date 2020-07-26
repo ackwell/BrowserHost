@@ -38,11 +38,12 @@ namespace BrowserHost.Plugin
 
 		public void Render()
 		{
-			// TODO: Renderer can take some time to spin up properly, should add a loading state.
+			ImGui.SetNextWindowSize(new Vector2(640, 480), ImGuiCond.FirstUseEver);
 			ImGui.Begin($"{Config.Name}###{Config.Guid}", GetWindowFlags());
 
-			HandleResize();
+			HandleWindowSize();
 
+			// TODO: Renderer can take some time to spin up properly, should add a loading state.
 			if (textureWrap != null)
 			{
 				HandleMouseEvent();
@@ -93,7 +94,7 @@ namespace BrowserHost.Plugin
 			renderProcess.Send(request);
 		}
 
-		private void HandleResize()
+		private void HandleWindowSize()
 		{
 			var currentSize = ImGui.GetWindowContentRegionMax() - ImGui.GetWindowContentRegionMin();
 			if (currentSize == size) { return; }
