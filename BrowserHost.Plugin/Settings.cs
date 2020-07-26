@@ -1,4 +1,5 @@
-﻿using Dalamud.Plugin;
+﻿using Dalamud.Game.Command;
+using Dalamud.Plugin;
 using ImGuiNET;
 using System;
 using System.Collections.Generic;
@@ -25,6 +26,13 @@ namespace BrowserHost.Plugin
 		public Settings(DalamudPluginInterface pluginInterface)
 		{
 			this.pluginInterface = pluginInterface;
+
+			pluginInterface.UiBuilder.OnOpenConfigUi += (sender, args) => open = true;
+			pluginInterface.CommandManager.AddHandler("/pbrowser", new CommandInfo((command, arguments) => open = true)
+			{
+				HelpMessage = "Open BrowserHost configuration pane.",
+				ShowInHelp = true,
+			});
 		}
 
 		public void Initialise()
