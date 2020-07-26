@@ -53,8 +53,9 @@ namespace BrowserHost.Renderer
 
 		public void Resize(System.Drawing.Size size)
 		{
-			if (texture != null) { obsoluteTextures.Add(texture); }
+			var oldTexture = texture;
 			texture = BuildViewTexture(size);
+			if (oldTexture != null) { obsoluteTextures.Add(oldTexture); }
 			// Need to clear the cached handle value
 			// TODO: Maybe I should just avoid the lazy cache and do it eagerly on texture build.
 			sharedTextureHandle = IntPtr.Zero;

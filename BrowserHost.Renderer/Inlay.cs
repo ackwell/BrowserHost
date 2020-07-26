@@ -62,8 +62,9 @@ namespace BrowserHost.Renderer
 
 		public void Dispose()
 		{
-			browser.Dispose();
+			browser.RenderHandler = null;
 			renderHandler.Dispose();
+			browser.Dispose();
 		}
 
 		public void Navigate(string newUrl)
