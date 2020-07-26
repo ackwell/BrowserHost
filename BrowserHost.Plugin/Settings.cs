@@ -11,7 +11,8 @@ namespace BrowserHost.Plugin
 	class Settings : IDisposable
 	{
 		public event EventHandler<InlayConfiguration> InlayAdded;
-		public event EventHandler<Guid> InlayRemoved;
+		public event EventHandler<InlayConfiguration> InlayNavigated;
+		public event EventHandler<InlayConfiguration> InlayRemoved;
 
 		private bool open = true;
 
@@ -55,9 +56,15 @@ namespace BrowserHost.Plugin
 			InlayAdded?.Invoke(this, inlayConfig);
 		}
 
+		private void NavigateInlay(InlayConfiguration inlayConfig)
+		{
+			if (inlayConfig.Url == "") { inlayConfig.Url = "about:blank"; }
+			InlayNavigated?.Invoke(this, inlayConfig);
+		}
+
 		private void RemoveInlay(InlayConfiguration inlayConfig)
 		{
-			InlayRemoved?.Invoke(this, inlayConfig.Guid);
+			InlayRemoved?.Invoke(this, inlayConfig);
 			config.Inlays.Remove(inlayConfig);
 		}
 
@@ -101,6 +108,7 @@ namespace BrowserHost.Plugin
 
 					ImGui.InputText("URL", ref inlayConfig.Url, 1000);
 					dirty |= ImGui.IsItemEdited();
+					if (ImGui.IsItemDeactivatedAfterEdit()) { NavigateInlay(inlayConfig); }
 
 					ImGui.Checkbox("Locked", ref inlayConfig.Locked);
 					dirty |= ImGui.IsItemEdited();

@@ -109,6 +109,13 @@ namespace BrowserHost.Renderer
 					return new TextureHandleResponse() { TextureHandle = inlay.SharedTextureHandle };
 				}
 
+				case NavigateInlayRequest navigateInlayRequest:
+				{
+					var inlay = inlays[navigateInlayRequest.Guid];
+					inlay.Navigate(navigateInlayRequest.Url);
+					return null;
+				}
+
 				case RemoveInlayRequest removeInlayRequest:
 				{
 					var inlay = inlays[removeInlayRequest.Guid];

@@ -67,6 +67,11 @@ namespace BrowserHost.Renderer
 			renderHandler.Dispose();
 		}
 
+		public void Navigate(string newUrl)
+		{
+			browser.Load(newUrl);
+		}
+
 		public void HandleMouseEvent(MouseEventRequest request)
 		{
 			// If the browser isn't ready yet, noop

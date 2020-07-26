@@ -49,6 +49,13 @@ namespace BrowserHost.Common
 	}
 
 	[Serializable]
+	public class NavigateInlayRequest : DownstreamIpcRequest
+	{
+		public Guid Guid;
+		public string Url;
+	}
+
+	[Serializable]
 	public class RemoveInlayRequest : DownstreamIpcRequest
 	{
 		public Guid Guid;

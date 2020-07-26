@@ -31,6 +31,11 @@ namespace BrowserHost.Plugin
 			renderProcess.Send(new RemoveInlayRequest() { Guid = Config.Guid });
 		}
 
+		public void Navigate(string newUrl)
+		{
+			renderProcess.Send(new NavigateInlayRequest() { Guid = Config.Guid, Url = newUrl });
+		}
+
 		public void SetCursor(Cursor cursor)
 		{
 			this.cursor = DecodeCursor(cursor);
