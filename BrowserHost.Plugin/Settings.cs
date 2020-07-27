@@ -13,6 +13,7 @@ namespace BrowserHost.Plugin
 	{
 		public event EventHandler<InlayConfiguration> InlayAdded;
 		public event EventHandler<InlayConfiguration> InlayNavigated;
+		public event EventHandler<InlayConfiguration> InlayDebugged;
 		public event EventHandler<InlayConfiguration> InlayRemoved;
 
 		private bool open = true;
@@ -69,6 +70,13 @@ namespace BrowserHost.Plugin
 		{
 			if (inlayConfig.Url == "") { inlayConfig.Url = "about:blank"; }
 			InlayNavigated?.Invoke(this, inlayConfig);
+		}
+
+		private void ReloadInlay(InlayConfiguration inlayConfig) { NavigateInlay(inlayConfig); }
+
+		private void DebugInlay(InlayConfiguration inlayConfig)
+		{
+			InlayDebugged?.Invoke(this, inlayConfig);
 		}
 
 		private void RemoveInlay(InlayConfiguration inlayConfig)
@@ -128,6 +136,11 @@ namespace BrowserHost.Plugin
 					ImGui.SameLine();
 					ImGui.Checkbox("Click Through", ref inlayConfig.ClickThrough);
 					dirty |= ImGui.IsItemEdited();
+
+					if (ImGui.Button("Reload")) { ReloadInlay(inlayConfig); }
+
+					ImGui.SameLine();
+					if (ImGui.Button("Open Dev Tools")) { DebugInlay(inlayConfig); }
 
 					ImGui.Spacing();
 

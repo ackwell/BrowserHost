@@ -45,13 +45,13 @@ namespace BrowserHost.Renderer
 			};
 			windowInfo.SetAsWindowless(IntPtr.Zero);
 
+			// WindowInfo gets ignored sometimes, be super sure:
+			browser.BrowserInitialized += (sender, args) => { browser.Size = size; };
+
 			var browserSettings = new BrowserSettings()
 			{
 				WindowlessFrameRate = 60,
 			};
-
-			// WindowInfo gets ignored sometimes, be super sure:
-			browser.BrowserInitialized += (sender, args) => { browser.Size = size; };
 
 			// Ready, boot up the browser
 			browser.CreateBrowser(windowInfo, browserSettings);
@@ -69,7 +69,21 @@ namespace BrowserHost.Renderer
 
 		public void Navigate(string newUrl)
 		{
+			// If navigating to the same url, force a clean reload
+			if (browser.Address == newUrl)
+			{
+				browser.Reload(true);
+				return;
+			}
+
+			// Otherwise load regularly
+			url = newUrl;
 			browser.Load(newUrl);
+		}
+
+		public void Debug()
+		{
+			browser.ShowDevTools();
 		}
 
 		public void HandleMouseEvent(MouseEventRequest request)

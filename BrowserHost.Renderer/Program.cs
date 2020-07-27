@@ -116,6 +116,13 @@ namespace BrowserHost.Renderer
 					return null;
 				}
 
+				case DebugInlayRequest debugInlayRequest:
+				{
+					var inlay = inlays[debugInlayRequest.Guid];
+					inlay.Debug();
+					return null;
+				}
+
 				case RemoveInlayRequest removeInlayRequest:
 				{
 					var inlay = inlays[removeInlayRequest.Guid];

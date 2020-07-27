@@ -39,6 +39,7 @@ namespace BrowserHost.Plugin
 			settings = new Settings(pluginInterface);
 			settings.InlayAdded += OnInlayAdded;
 			settings.InlayNavigated += OnInlayNavigated;
+			settings.InlayDebugged += OnInlayDebugged;
 			settings.InlayRemoved += OnInlayRemoved;
 			settings.Initialise();
 		}
@@ -53,6 +54,12 @@ namespace BrowserHost.Plugin
 		{
 			var inlay = inlays[config.Guid];
 			inlay.Navigate(config.Url);
+		}
+
+		private void OnInlayDebugged(object sender, InlayConfiguration config)
+		{
+			var inlay = inlays[config.Guid];
+			inlay.Debug();
 		}
 
 		private void OnInlayRemoved(object sender, InlayConfiguration config)

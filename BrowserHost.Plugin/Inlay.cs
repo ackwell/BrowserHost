@@ -38,6 +38,11 @@ namespace BrowserHost.Plugin
 			renderProcess.Send(new NavigateInlayRequest() { Guid = Config.Guid, Url = newUrl });
 		}
 
+		public void Debug()
+		{
+			renderProcess.Send(new DebugInlayRequest() { Guid = Config.Guid });
+		}
+
 		public void SetCursor(Cursor cursor)
 		{
 			this.cursor = DecodeCursor(cursor);
