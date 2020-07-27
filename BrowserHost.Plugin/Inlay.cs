@@ -5,6 +5,7 @@ using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
 using System;
 using System.Numerics;
+using Dalamud.Plugin;
 
 namespace BrowserHost.Plugin
 {
@@ -89,10 +90,9 @@ namespace BrowserHost.Plugin
 
 			var io = ImGui.GetIO();
 			var mousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
-			var windowSize = ImGui.GetWindowContentRegionMax() - ImGui.GetWindowContentRegionMin(); ;
 
 			// If the cursor is outside the window, send a final mouse leave then noop
-			if (mousePos.X < 0 || mousePos.Y < 0 || mousePos.X > windowSize.X || mousePos.Y > windowSize.Y)
+			if (!ImGui.IsWindowHovered())
 			{
 				if (mouseInWindow)
 				{
@@ -109,7 +109,6 @@ namespace BrowserHost.Plugin
 			}
 			mouseInWindow = true;
 
-			// TODO: Overlapping windows will likely cause nondeterministic cursor handling here.
 			ImGui.SetMouseCursor(cursor);
 
 			var down = EncodeMouseButtons(io.MouseClicked);
