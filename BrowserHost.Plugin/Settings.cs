@@ -123,26 +123,27 @@ namespace BrowserHost.Plugin
 				{
 					ImGui.PushID(inlayConfig.Guid.ToString());
 
-					ImGui.InputText("Name", ref inlayConfig.Name, 100);
-					dirty |= ImGui.IsItemEdited();
+					dirty |= ImGui.InputText("Name", ref inlayConfig.Name, 100);
 
-					ImGui.InputText("URL", ref inlayConfig.Url, 1000);
-					dirty |= ImGui.IsItemEdited();
+					dirty |= ImGui.InputText("URL", ref inlayConfig.Url, 1000);
 					if (ImGui.IsItemDeactivatedAfterEdit()) { NavigateInlay(inlayConfig); }
 
-					ImGui.Checkbox("Locked", ref inlayConfig.Locked);
-					dirty |= ImGui.IsItemEdited();
+					var true_ = true;
+					if (inlayConfig.ClickThrough) { ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f); }
+					dirty |= ImGui.Checkbox("Locked", ref inlayConfig.ClickThrough ? ref true_ : ref inlayConfig.Locked);
+					if (inlayConfig.ClickThrough) { ImGui.PopStyleVar(); }
+					if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from being resized or moved. This is implicitly set by Click Through."); }
 
 					ImGui.SameLine();
-					ImGui.Checkbox("Click Through", ref inlayConfig.ClickThrough);
-					dirty |= ImGui.IsItemEdited();
+					dirty |= ImGui.Checkbox("Click Through", ref inlayConfig.ClickThrough);
+					if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from intecepting any mouse events."); }
 
 					if (ImGui.Button("Reload")) { ReloadInlay(inlayConfig); }
 
 					ImGui.SameLine();
 					if (ImGui.Button("Open Dev Tools")) { DebugInlay(inlayConfig); }
 
-					ImGui.Spacing();
+					ImGui.Dummy(new Vector2(0, 10));
 
 					ImGui.PopID();
 				}

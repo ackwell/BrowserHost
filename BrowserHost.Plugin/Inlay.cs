@@ -75,7 +75,7 @@ namespace BrowserHost.Plugin
 				| ImGuiWindowFlags.NoBringToFrontOnFocus
 				| ImGuiWindowFlags.NoFocusOnAppearing;
 
-			if (Config.Locked)
+			if (Config.Locked || Config.ClickThrough)
 			{
 				flags |= ImGuiWindowFlags.None
 					| ImGuiWindowFlags.NoMove
