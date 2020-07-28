@@ -25,7 +25,7 @@ namespace BrowserHost.Common
 
 		public IpcBuffer(string name, Func<TIncoming, object> callback) : base(name, CallbackFactory(callback)) { }
 
-		public TResponse RemoteRequest<TResponse>(TOutgoing request, int timeout = Timeout.Infinite)
+		public TResponse RemoteRequest<TResponse>(TOutgoing request, int timeout = 5000)
 		{
 			var rawRequest = Encode(request);
 

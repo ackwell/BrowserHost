@@ -25,18 +25,20 @@ namespace BrowserHost.Renderer
 		static void Main(string[] rawArgs)
 		{
 			Console.WriteLine("Render process running.");
+			var args = RenderProcessArguments.Deserialise(rawArgs[0]);
+
+			cefAssemblyDir = args.CefAssemblyDir;
+			dalamudAssemblyDir = args.DalamudAssemblyDir;
+
 			AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
-			Run(RenderProcessArguments.Deserialise(rawArgs[0]));
+			Run(args);
 		}
 
 		// Main process logic. Seperated to ensure assembly resolution is configured.
 		[MethodImpl(MethodImplOptions.NoInlining)]
 		private static void Run(RenderProcessArguments args)
 		{
-			cefAssemblyDir = args.CefAssemblyDir;
-			dalamudAssemblyDir = args.DalamudAssemblyDir;
-
 			waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, args.KeepAliveHandleName);
 
 			// Boot up a thread to make sure we shut down if parent dies
