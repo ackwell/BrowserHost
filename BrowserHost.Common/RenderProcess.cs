@@ -67,6 +67,14 @@ namespace BrowserHost.Common
 		public Guid Guid;
 	}
 
+	public enum InputModifier
+	{
+		None = 0,
+		Shift = 1 << 0,
+		Control = 1 << 1,
+		Alt = 1 << 2,
+	}
+
 	public enum MouseButton
 	{
 		None = 0,
@@ -91,6 +99,7 @@ namespace BrowserHost.Common
 		public MouseButton Up;
 		public float WheelX;
 		public float WheelY;
+		public InputModifier Modifier;
 	}
 
 	public enum KeyEventType
@@ -108,6 +117,7 @@ namespace BrowserHost.Common
 		public bool SystemKey;
 		public int UserKeyCode;
 		public int NativeKeyCode;
+		public InputModifier Modifier;
 	}
 
 	#endregion

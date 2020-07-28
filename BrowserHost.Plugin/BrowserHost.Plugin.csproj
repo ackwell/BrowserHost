@@ -74,6 +74,7 @@
     <Compile Include="Configuration.cs" />
     <Compile Include="DxHandler.cs" />
     <Compile Include="Inlay.cs" />
+    <Compile Include="NativeMethods.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RenderProcess.cs" />

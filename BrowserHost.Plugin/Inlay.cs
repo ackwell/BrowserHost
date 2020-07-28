@@ -74,6 +74,11 @@ namespace BrowserHost.Plugin
 				|| msg == WindowsMessage.WM_SYSKEYUP
 				|| msg == WindowsMessage.WM_SYSCHAR;
 
+			var modifier = InputModifier.None;
+			if (NativeMethods.IsKeyActive(VirtualKey.Shift)) { modifier |= InputModifier.Shift; }
+			if (NativeMethods.IsKeyActive(VirtualKey.Control)) { modifier |= InputModifier.Control; }
+			if (NativeMethods.IsKeyActive(VirtualKey.Menu)) { modifier |= InputModifier.Alt; }
+
 			renderProcess.Send(new KeyEventRequest()
 			{
 				Guid = Config.Guid,
@@ -81,6 +86,7 @@ namespace BrowserHost.Plugin
 				SystemKey = isSystemKey,
 				UserKeyCode = (int)wParam,
 				NativeKeyCode = (int)lParam,
+				Modifier = modifier,
 			});
 
 			// We've handled the input, signal. For these message types, `0` signals a capture.
@@ -168,6 +174,11 @@ namespace BrowserHost.Plugin
 				return;
 			}
 
+			var modifier = InputModifier.None;
+			if (io.KeyShift) { modifier |= InputModifier.Shift; }
+			if (io.KeyCtrl) { modifier |= InputModifier.Control; }
+			if (io.KeyAlt) { modifier |= InputModifier.Alt; }
+
 			// TODO: Either this or the entire handler function should be asynchronous so we're not blocking the entire draw thread
 			renderProcess.Send(new MouseEventRequest()
 			{
@@ -179,6 +190,7 @@ namespace BrowserHost.Plugin
 				Up = up,
 				WheelX = wheelX,
 				WheelY = wheelY,
+				Modifier = modifier,
 			});
 		}
 

@@ -92,7 +92,7 @@ namespace BrowserHost.Renderer
 			if (browser == null || !browser.IsBrowserInitialized) { return; }
 
 			// TODO: Handle key modifiers
-			var event_ = new MouseEvent((int)request.X, (int)request.Y, CefEventFlags.None);
+			var event_ = new MouseEvent((int)request.X, (int)request.Y, DecodeInputModifier(request.Modifier));
 
 			var host = browser.GetBrowserHost();
 
@@ -123,8 +123,7 @@ namespace BrowserHost.Renderer
 			browser.GetBrowserHost().SendKeyEvent(new KeyEvent()
 			{
 				Type = type,
-				// TODO: Modifiers
-				Modifiers = CefEventFlags.None,
+				Modifiers = DecodeInputModifier(request.Modifier),
 				WindowsKeyCode = request.UserKeyCode,
 				NativeKeyCode = request.NativeKeyCode,
 				IsSystemKey = request.SystemKey,
@@ -144,6 +143,15 @@ namespace BrowserHost.Renderer
 			if ((buttons & MouseButton.Primary) == MouseButton.Primary) { result.Add(MouseButtonType.Left); }
 			if ((buttons & MouseButton.Secondary) == MouseButton.Secondary) { result.Add(MouseButtonType.Right); }
 			if ((buttons & MouseButton.Tertiary) == MouseButton.Tertiary) { result.Add(MouseButtonType.Middle); }
+			return result;
+		}
+
+		private CefEventFlags DecodeInputModifier(InputModifier modifier)
+		{
+			var result = CefEventFlags.None;
+			if ((modifier & InputModifier.Shift) == InputModifier.Shift) { result |= CefEventFlags.ShiftDown; }
+			if ((modifier & InputModifier.Control) == InputModifier.Control) { result |= CefEventFlags.ControlDown; }
+			if ((modifier & InputModifier.Alt) == InputModifier.Alt) { result |= CefEventFlags.AltDown; }
 			return result;
 		}
 	}
