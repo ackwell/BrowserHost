@@ -17,6 +17,8 @@ namespace BrowserHost.Plugin
 		WM_SYSKEYDOWN = 0x0104,
 		WM_SYSKEYUP = 0x0105,
 		WM_SYSCHAR = 0x0106,
+
+		WM_LBUTTONDOWN = 0x0201,
 	}
 
 	enum VirtualKey : int

@@ -51,6 +51,11 @@ namespace BrowserHost.Plugin
 
 		public (bool, long) WndProcMessage(WindowsMessage msg, ulong wParam, long lParam)
 		{
+			// Check if there was a click, and use it to set the window focused state
+			// We're avoiding ImGui for this, as we want to check for clicks entirely outside
+			// ImGui's pervue to defocus inlays
+			if (msg == WindowsMessage.WM_LBUTTONDOWN) { windowFocused = mouseInWindow; }
+
 			// Bail if we're not focused
 			// TODO: Revisit this for UI stuff, might not hold
 			if (!windowFocused) { return (false, 0); }
@@ -97,7 +102,6 @@ namespace BrowserHost.Plugin
 		{
 			ImGui.SetNextWindowSize(new Vector2(640, 480), ImGuiCond.FirstUseEver);
 			ImGui.Begin($"{Config.Name}###{Config.Guid}", GetWindowFlags());
-			windowFocused = ImGui.IsWindowFocused();
 
 			HandleWindowSize();
 
