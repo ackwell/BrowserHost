@@ -19,6 +19,7 @@ namespace BrowserHost.Plugin
 		private TextureWrap textureWrap;
 
 		private bool mouseInWindow;
+		private bool windowFocused;
 		private ImGuiMouseCursor cursor;
 
 		public Inlay(RenderProcess renderProcess, InlayConfiguration config)
@@ -48,10 +49,49 @@ namespace BrowserHost.Plugin
 			this.cursor = DecodeCursor(cursor);
 		}
 
+		public (bool, long) WndProcMessage(WindowsMessage msg, ulong wParam, long lParam)
+		{
+			// Bail if we're not focused
+			// TODO: Revisit this for UI stuff, might not hold
+			if (!windowFocused) { return (false, 0); }
+
+			KeyEventType? eventType = msg switch
+			{
+				WindowsMessage.WM_KEYDOWN => KeyEventType.KeyDown,
+				WindowsMessage.WM_SYSKEYDOWN => KeyEventType.KeyDown,
+				WindowsMessage.WM_KEYUP => KeyEventType.KeyUp,
+				WindowsMessage.WM_SYSKEYUP => KeyEventType.KeyUp,
+				WindowsMessage.WM_CHAR => KeyEventType.Character,
+				WindowsMessage.WM_SYSCHAR => KeyEventType.Character,
+				_ => null,
+			};
+
+			// If the event isn't something we're tracking, bail early with no capture
+			if (eventType == null) { return (false, 0); }
+
+			var isSystemKey = false
+				|| msg == WindowsMessage.WM_SYSKEYDOWN
+				|| msg == WindowsMessage.WM_SYSKEYUP
+				|| msg == WindowsMessage.WM_SYSCHAR;
+
+			renderProcess.Send(new KeyEventRequest()
+			{
+				Guid = Config.Guid,
+				Type = eventType.Value,
+				SystemKey = isSystemKey,
+				UserKeyCode = (int)wParam,
+				NativeKeyCode = (int)lParam,
+			});
+
+			// We've handled the input, signal. For these message types, `0` signals a capture.
+			return (true, 0);
+		}
+
 		public void Render()
 		{
 			ImGui.SetNextWindowSize(new Vector2(640, 480), ImGuiCond.FirstUseEver);
 			ImGui.Begin($"{Config.Name}###{Config.Guid}", GetWindowFlags());
+			windowFocused = ImGui.IsWindowFocused();
 
 			HandleWindowSize();
 

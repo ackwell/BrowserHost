@@ -138,6 +138,13 @@ namespace BrowserHost.Renderer
 					return null;
 				}
 
+				case KeyEventRequest keyEventRequest:
+				{
+					var inlay = inlays[keyEventRequest.Guid];
+					inlay?.HandleKeyEvent(keyEventRequest);
+					return null;
+				}
+
 				default:
 					throw new Exception($"Unknown IPC request type {request.GetType().Name} received.");
 			}

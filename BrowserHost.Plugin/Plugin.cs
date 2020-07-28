@@ -4,6 +4,7 @@ using ImGuiNET;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
 
 namespace BrowserHost.Plugin
@@ -51,11 +52,10 @@ namespace BrowserHost.Plugin
 
 		private (bool, long) OnWndProc(WindowsMessage msg, ulong wParam, long lParam)
 		{
-			if (msg == WindowsMessage.WM_KEYDOWN)
-			{
-				PluginLog.Log($"KEYDOWN: {wParam} {lParam}");
-			}
-			return (false, 0);
+			// Notify all the inlays of the wndproc, respond with the first capturing response (if any)
+			// TODO: Yeah this ain't great but realistically only one will capture at any one time for now. Revisit if shit breaks or something idfk.
+			var responses = inlays.Select(pair => pair.Value.WndProcMessage(msg, wParam, lParam));
+			return responses.FirstOrDefault(pair => pair.Item1);
 		}
 
 		private void OnInlayAdded(object sender, InlayConfiguration config)

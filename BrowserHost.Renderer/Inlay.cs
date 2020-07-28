@@ -110,6 +110,27 @@ namespace BrowserHost.Renderer
 			host.SendMouseWheelEvent(event_, (int)request.WheelX * deltaMult, (int)request.WheelY * deltaMult);
 		}
 
+		public void HandleKeyEvent(KeyEventRequest request)
+		{
+			var type = request.Type switch
+			{
+				Common.KeyEventType.KeyDown => CefSharp.KeyEventType.RawKeyDown,
+				Common.KeyEventType.KeyUp => CefSharp.KeyEventType.KeyUp,
+				Common.KeyEventType.Character => CefSharp.KeyEventType.Char,
+				_ => throw new ArgumentException($"Invalid KeyEventType {request.Type}")
+			};
+
+			browser.GetBrowserHost().SendKeyEvent(new KeyEvent()
+			{
+				Type = type,
+				// TODO: Modifiers
+				Modifiers = CefEventFlags.None,
+				WindowsKeyCode = request.UserKeyCode,
+				NativeKeyCode = request.NativeKeyCode,
+				IsSystemKey = request.SystemKey,
+			});
+		}
+
 		public void Resize(Size size)
 		{
 			// Need to resize renderer first, the browser will check it (and hence the texture) when browser.Size is set.

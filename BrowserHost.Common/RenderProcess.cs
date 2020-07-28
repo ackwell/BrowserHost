@@ -93,6 +93,23 @@ namespace BrowserHost.Common
 		public float WheelY;
 	}
 
+	public enum KeyEventType
+	{
+		KeyDown,
+		KeyUp,
+		Character,
+	}
+
+	[Serializable]
+	public class KeyEventRequest : DownstreamIpcRequest
+	{
+		public Guid Guid;
+		public KeyEventType Type;
+		public bool SystemKey;
+		public int UserKeyCode;
+		public int NativeKeyCode;
+	}
+
 	#endregion
 
 	#region Upstream IPC
