@@ -5,7 +5,6 @@ using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
 using System;
 using System.Numerics;
-using Dalamud.Plugin;
 
 namespace BrowserHost.Plugin
 {
@@ -20,6 +19,7 @@ namespace BrowserHost.Plugin
 
 		private bool mouseInWindow;
 		private bool windowFocused;
+		private InputModifier modifier;
 		private ImGuiMouseCursor cursor;
 
 		public Inlay(RenderProcess renderProcess, InlayConfiguration config)
@@ -79,10 +79,16 @@ namespace BrowserHost.Plugin
 				|| msg == WindowsMessage.WM_SYSKEYUP
 				|| msg == WindowsMessage.WM_SYSCHAR;
 
-			var modifier = InputModifier.None;
-			if (NativeMethods.IsKeyActive(VirtualKey.Shift)) { modifier |= InputModifier.Shift; }
-			if (NativeMethods.IsKeyActive(VirtualKey.Control)) { modifier |= InputModifier.Control; }
-			if (NativeMethods.IsKeyActive(VirtualKey.Menu)) { modifier |= InputModifier.Alt; }
+			// TODO: Technically this is only firing once, because we're checking focused before this point,
+			// but having this logic essentially duped per-inlay is a bit eh. Dedupe at higher point?
+			var modifierAdjust = InputModifier.None;
+			if (wParam == (int)VirtualKey.Shift) { modifierAdjust |= InputModifier.Shift; }
+			if (wParam == (int)VirtualKey.Control) { modifierAdjust |= InputModifier.Control; }
+			// SYS* messages signal alt is held (really?)
+			if (isSystemKey) { modifierAdjust |= InputModifier.Alt; }
+
+			if (eventType == KeyEventType.KeyDown) { modifier |= modifierAdjust; }
+			else if (eventType == KeyEventType.KeyUp) { modifier &= ~modifierAdjust; }
 
 			renderProcess.Send(new KeyEventRequest()
 			{

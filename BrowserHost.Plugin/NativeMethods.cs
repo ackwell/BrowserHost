@@ -25,7 +25,6 @@ namespace BrowserHost.Plugin
 	{
 		Shift = 0x10,
 		Control = 0x11,
-		Menu = 0x12, // Alt
 	}
 
 	class NativeMethods
