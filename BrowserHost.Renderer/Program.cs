@@ -27,7 +27,10 @@ namespace BrowserHost.Renderer
 			Console.WriteLine("Render process running.");
 			var args = RenderProcessArguments.Deserialise(rawArgs[0]);
 
-			cefAssemblyDir = args.CefAssemblyDir;
+			// TODO: This will need to be communicated up to the host plugin _BEFORE_ resolving CEF
+			// when we start pulling it down on first load.
+			var target = Environment.Is64BitProcess ? "x64" : "x86";
+			cefAssemblyDir = Path.Combine(args.CefAssemblyDir, target);
 			dalamudAssemblyDir = args.DalamudAssemblyDir;
 
 			AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;

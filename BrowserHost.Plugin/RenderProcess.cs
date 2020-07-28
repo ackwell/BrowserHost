@@ -35,7 +35,7 @@ namespace BrowserHost.Plugin
 			{
 				ParentPid = pid,
 				DalamudAssemblyDir = AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
-				CefAssemblyDir = Path.Combine(pluginDir, Environment.Is64BitProcess ? "x64" : "x86"),
+				CefAssemblyDir = pluginDir,
 				KeepAliveHandleName = keepAliveHandleName,
 				IpcChannelName = ipcChannelName,
 			};
