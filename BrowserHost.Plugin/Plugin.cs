@@ -133,14 +133,16 @@ namespace BrowserHost.Plugin
 			foreach (var inlay in inlays.Values) { inlay.Dispose(); }
 			inlays.Clear();
 
-			renderProcess.Dispose();
+			renderProcess?.Dispose();
 
-			settings.Dispose();
-
-			pluginInterface.Dispose();
+			settings?.Dispose();
 
 			WndProcHandler.Shutdown();
 			DxHandler.Shutdown();
+
+			pluginInterface.Dispose();
+
+			dependencyManager.Dispose();
 		}
 	}
 }
