@@ -3,6 +3,7 @@ using ImGuiNET;
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Numerics;
@@ -58,7 +59,7 @@ namespace BrowserHost.Plugin
 
 		private bool DependencyMissing(Dependency dependency)
 		{
-			var versionFilePath = Path.Combine(pluginDir, dependency.Directory, "VERSION");
+			var versionFilePath = Path.Combine(DependencyPath(dependency), "VERSION");
 
 			string versionContents;
 			try { versionContents = File.ReadAllText(versionFilePath); }
@@ -92,8 +93,7 @@ namespace BrowserHost.Plugin
 			Directory.CreateDirectory(downloadDir);
 
 			// Get the file name we'll download to - if it's already in downloads, it may be corrupt, delete
-			var fileName = $"{dependency.Directory}-{dependency.Version}.zip";
-			var filePath = Path.Combine(downloadDir, fileName);
+			var filePath = Path.Combine(downloadDir, $"{dependency.Directory}-{dependency.Version}.zip");
 			File.Delete(filePath);
 
 			// Set up the download and kick it off
@@ -106,7 +106,17 @@ namespace BrowserHost.Plugin
 				dependency.Url.Replace("{VERSION}", dependency.Version),
 				filePath);
 
-			// TODO: Extract to the destination dir
+			// Extract to the destination dir
+			var destinationDir = DependencyPath(dependency);
+			try { Directory.Delete(destinationDir, true); }
+			catch { }
+			ZipFile.ExtractToDirectory(filePath, destinationDir);
+		}
+
+		// TODO: Make this public and use when passing cef assembly dir to renderer?
+		private string DependencyPath(Dependency dependency)
+		{
+			return Path.Combine(pluginDir, dependency.Directory);
 		}
 
 		public void Render()
@@ -149,7 +159,8 @@ namespace BrowserHost.Plugin
 
 			foreach (var progress in installProgress)
 			{
-				ImGui.ProgressBar(progress.Value / 100, new Vector2(200, 0));
+				if (progress.Value >= 100) { ImGui.ProgressBar(progress.Value / 100, new Vector2(200, 0), "Extracting"); }
+				else { ImGui.ProgressBar(progress.Value / 100, new Vector2(200, 0)); }
 				ImGui.SameLine();
 				ImGui.Text(progress.Key);
 			}
