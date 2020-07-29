@@ -17,7 +17,7 @@
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <CefSharpAnyCpuSupport>true</CefSharpAnyCpuSupport>
+    <CefSharpTargetDir>.\cef</CefSharpTargetDir>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
   </PropertyGroup>
