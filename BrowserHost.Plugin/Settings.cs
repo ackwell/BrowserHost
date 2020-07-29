@@ -16,7 +16,7 @@ namespace BrowserHost.Plugin
 		public event EventHandler<InlayConfiguration> InlayDebugged;
 		public event EventHandler<InlayConfiguration> InlayRemoved;
 
-		private bool open = true;
+		private bool open = false;
 
 		private DalamudPluginInterface pluginInterface;
 
