@@ -19,20 +19,18 @@ namespace BrowserHost.Plugin
 		private string keepAliveHandleName;
 		private string ipcChannelName;
 
-		public RenderProcess(int pid, string pluginDir)
+		public RenderProcess(int pid, string pluginDir, DependencyManager dependencyManager)
 		{
 			keepAliveHandleName = $"BrowserHostRendererKeepAlive{pid}";
 			ipcChannelName = $"BrowserHostRendererIpcChannel{pid}";
 
 			ipc = new IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest>(ipcChannelName, request => Recieve?.Invoke(this, request));
 
-			// TODO: Put cef in a cef-specific subdir
-			// TODO: Download cef on first boot etc
 			var processArgs = new RenderProcessArguments()
 			{
 				ParentPid = pid,
 				DalamudAssemblyDir = AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
-				CefAssemblyDir = Path.Combine(pluginDir, "cef"),
+				CefAssemblyDir = dependencyManager.GetDependencyPathFor("cef"),
 				KeepAliveHandleName = keepAliveHandleName,
 				IpcChannelName = ipcChannelName,
 			};

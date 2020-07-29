@@ -50,7 +50,7 @@ namespace BrowserHost.Plugin
 			// Boot the render process. This has to be done before initialising settings to prevent a
 			// race conditionson inlays recieving a null reference.
 			var pid = Process.GetCurrentProcess().Id;
-			renderProcess = new RenderProcess(pid, pluginDir);
+			renderProcess = new RenderProcess(pid, pluginDir, dependencyManager);
 			renderProcess.Recieve += HandleIpcRequest;
 			renderProcess.Start();
 

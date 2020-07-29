@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace BrowserHost.Plugin
 {
-	struct Dependency
+	class Dependency
 	{
 		public string Url;
 		public string Version;
@@ -33,7 +33,7 @@ namespace BrowserHost.Plugin
 
 		public event EventHandler DependenciesReady;
 
-		private string pluginDir;
+		private string dependencyDir;
 		private Dependency[] missingDependencies;
 		private ConcurrentDictionary<string, float> installProgress = new ConcurrentDictionary<string, float>();
 
@@ -48,7 +48,8 @@ namespace BrowserHost.Plugin
 
 		public DependencyManager(string pluginDir)
 		{
-			this.pluginDir = pluginDir;
+			// We're storing dependencies a level above the plugin so they get preserved across plugin updates
+			dependencyDir = Path.GetDirectoryName(pluginDir);
 		}
 
 		public void Initialise()
@@ -74,7 +75,7 @@ namespace BrowserHost.Plugin
 
 		private bool DependencyMissing(Dependency dependency)
 		{
-			var versionFilePath = Path.Combine(DependencyPath(dependency), "VERSION");
+			var versionFilePath = Path.Combine(GetDependencyPath(dependency), "VERSION");
 
 			string versionContents;
 			try { versionContents = File.ReadAllText(versionFilePath); }
@@ -94,7 +95,7 @@ namespace BrowserHost.Plugin
 				viewMode = ViewMode.Complete;
 				PluginLog.Log("Dependencies installed successfully.");
 
-				try { Directory.Delete(Path.Combine(pluginDir, downloadDir), true); }
+				try { Directory.Delete(Path.Combine(dependencyDir, downloadDir), true); }
 				catch { }
 			});
 		}
@@ -104,7 +105,7 @@ namespace BrowserHost.Plugin
 			PluginLog.Log($"Downloading {dependency.Directory} {dependency.Version}");
 
 			// Ensure the downloads dir exists
-			var downloadDir = Path.Combine(pluginDir, DependencyManager.downloadDir);
+			var downloadDir = Path.Combine(dependencyDir, DependencyManager.downloadDir);
 			Directory.CreateDirectory(downloadDir);
 
 			// Get the file name we'll download to - if it's already in downloads, it may be corrupt, delete
@@ -122,7 +123,7 @@ namespace BrowserHost.Plugin
 				filePath);
 
 			// Extract to the destination dir
-			var destinationDir = DependencyPath(dependency);
+			var destinationDir = GetDependencyPath(dependency);
 			try { Directory.Delete(destinationDir, true); }
 			catch { }
 			ZipFile.ExtractToDirectory(filePath, destinationDir);
@@ -131,10 +132,16 @@ namespace BrowserHost.Plugin
 			File.Delete(filePath);
 		}
 
-		// TODO: Make this public and use when passing cef assembly dir to renderer?
-		private string DependencyPath(Dependency dependency)
+		public string GetDependencyPathFor(string dependencyDir)
 		{
-			return Path.Combine(pluginDir, dependency.Directory);
+			var dependency = dependencies.First(dependency => dependency.Directory == dependencyDir);
+			if (dependency == null) { throw new Exception($"Unknown dependency {dependencyDir}"); }
+			return GetDependencyPath(dependency);
+		}
+
+		private string GetDependencyPath(Dependency dependency)
+		{
+			return Path.Combine(dependencyDir, dependency.Directory);
 		}
 
 		public void Render()
