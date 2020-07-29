@@ -4,8 +4,10 @@ using ImGuiNET;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 
 namespace BrowserHost.Plugin
 {
@@ -14,13 +16,32 @@ namespace BrowserHost.Plugin
 		public string Name => "Browser Host";
 
 		private DalamudPluginInterface pluginInterface;
+		private string pluginDir;
 
+		private DependencyManager dependencyManager;
 		private Settings settings;
 
 		private RenderProcess renderProcess;
 		private Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 
 		public void Initialize(DalamudPluginInterface pluginInterface)
+		{
+			this.pluginInterface = pluginInterface;
+			pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+			// Hook up render hook
+			pluginInterface.UiBuilder.OnBuildUi += Render;
+
+			dependencyManager = new DependencyManager(pluginDir);
+			dependencyManager.Initialise();
+
+			// Boot straight into rendering if the deps are valid ootb
+			if (dependencyManager.Valid) {
+				StartRendering();
+			}
+		}
+
+		private void StartRendering()
 		{
 			// Spin up DX handling from the plugin interface
 			DxHandler.Initialise(pluginInterface);
@@ -30,14 +51,10 @@ namespace BrowserHost.Plugin
 			WndProcHandler.Initialise(hWnd);
 			WndProcHandler.WndProcMessage += OnWndProc;
 
-			// Hook up the plugin interface and our UI rendering logic
-			this.pluginInterface = pluginInterface;
-			pluginInterface.UiBuilder.OnBuildUi += Render;
-
 			// Boot the render process. This has to be done before initialising settings to prevent a
 			// race conditionson inlays recieving a null reference.
 			var pid = Process.GetCurrentProcess().Id;
-			renderProcess = new RenderProcess(pid);
+			renderProcess = new RenderProcess(pid, pluginDir);
 			renderProcess.Recieve += HandleIpcRequest;
 			renderProcess.Start();
 
@@ -101,6 +118,7 @@ namespace BrowserHost.Plugin
 
 		private void Render()
 		{
+			dependencyManager?.Render();
 			settings?.Render();
 
 			ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));

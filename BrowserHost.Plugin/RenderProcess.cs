@@ -3,7 +3,6 @@ using Dalamud.Plugin;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Threading;
 
 namespace BrowserHost.Plugin
@@ -20,14 +19,12 @@ namespace BrowserHost.Plugin
 		private string keepAliveHandleName;
 		private string ipcChannelName;
 
-		public RenderProcess(int pid)
+		public RenderProcess(int pid, string pluginDir)
 		{
 			keepAliveHandleName = $"BrowserHostRendererKeepAlive{pid}";
 			ipcChannelName = $"BrowserHostRendererIpcChannel{pid}";
 
 			ipc = new IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest>(ipcChannelName, request => Recieve?.Invoke(this, request));
-
-			var pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
 			// TODO: Put cef in a cef-specific subdir
 			// TODO: Download cef on first boot etc

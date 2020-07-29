@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Configuration.cs" />
+    <Compile Include="DependencyManager.cs" />
     <Compile Include="DxHandler.cs" />
     <Compile Include="Inlay.cs" />
     <Compile Include="NativeMethods.cs" />
