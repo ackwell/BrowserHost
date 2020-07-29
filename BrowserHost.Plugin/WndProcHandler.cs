@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dalamud.Plugin;
+using System;
 using System.Runtime.InteropServices;
 
 namespace BrowserHost.Plugin
@@ -49,5 +50,4 @@ namespace BrowserHost.Plugin
 			return NativeMethods.CallWindowProc(oldWndProcPtr, hWnd, msg, wParam, lParam);
 		}
 	}
-
 }

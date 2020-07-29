@@ -33,12 +33,8 @@ namespace BrowserHost.Plugin
 			pluginInterface.UiBuilder.OnBuildUi += Render;
 
 			dependencyManager = new DependencyManager(pluginDir);
+			dependencyManager.DependenciesReady += (sender, args) => StartRendering();
 			dependencyManager.Initialise();
-
-			// Boot straight into rendering if the deps are valid ootb
-			if (dependencyManager.Valid) {
-				StartRendering();
-			}
 		}
 
 		private void StartRendering()

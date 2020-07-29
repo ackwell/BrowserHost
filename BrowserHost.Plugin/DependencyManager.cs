@@ -31,7 +31,7 @@ namespace BrowserHost.Plugin
 			}
 		};
 
-		public bool Valid { get => missingDependencies?.Length == 0; }
+		public event EventHandler DependenciesReady;
 
 		private string pluginDir;
 		private Dependency[] missingDependencies;
@@ -42,8 +42,9 @@ namespace BrowserHost.Plugin
 			Confirm,
 			Installing,
 			Complete,
+			Hidden,
 		}
-		private ViewMode viewMode = ViewMode.Confirm;
+		private ViewMode viewMode = ViewMode.Hidden;
 
 		public DependencyManager(string pluginDir)
 		{
@@ -52,10 +53,24 @@ namespace BrowserHost.Plugin
 
 		public void Initialise()
 		{
-			missingDependencies = dependencies.Where(DependencyMissing).ToArray();
+			CheckDependencies();
 		}
 
 		public void Dispose() { }
+
+		private void CheckDependencies()
+		{
+			missingDependencies = dependencies.Where(DependencyMissing).ToArray();
+			if (missingDependencies.Length == 0)
+			{
+				viewMode = ViewMode.Hidden;
+				DependenciesReady?.Invoke(this, null);
+			}
+			else
+			{
+				viewMode = ViewMode.Confirm;
+			}
+		}
 
 		private bool DependencyMissing(Dependency dependency)
 		{
@@ -71,7 +86,7 @@ namespace BrowserHost.Plugin
 		private void InstallDependencies()
 		{
 			viewMode = ViewMode.Installing;
-			PluginLog.Log("Installind dependencies...");
+			PluginLog.Log("Installing dependencies...");
 
 			var installTasks = missingDependencies.Select(InstallDependency);
 			Task.WhenAll(installTasks).ContinueWith(task =>
@@ -79,8 +94,8 @@ namespace BrowserHost.Plugin
 				viewMode = ViewMode.Complete;
 				PluginLog.Log("Dependencies installed successfully.");
 
-
-				// TODO: delete download dir?
+				try { Directory.Delete(Path.Combine(pluginDir, downloadDir), true); }
+				catch { }
 			});
 		}
 
@@ -111,6 +126,9 @@ namespace BrowserHost.Plugin
 			try { Directory.Delete(destinationDir, true); }
 			catch { }
 			ZipFile.ExtractToDirectory(filePath, destinationDir);
+
+			// Clear out the downloaded file now we're done with it
+			File.Delete(filePath);
 		}
 
 		// TODO: Make this public and use when passing cef assembly dir to renderer?
@@ -121,7 +139,7 @@ namespace BrowserHost.Plugin
 
 		public void Render()
 		{
-			if (Valid) { return; }
+			if (viewMode == ViewMode.Hidden) { return; }
 
 			var windowFlags = ImGuiWindowFlags.AlwaysAutoResize;
 			ImGui.Begin("BrowserHost dependencies", windowFlags);
@@ -139,6 +157,9 @@ namespace BrowserHost.Plugin
 		private void RenderConfirm()
 		{
 			ImGui.Text($"The following dependencies are currently missing:");
+
+			if (missingDependencies == null) { return; }
+
 			ImGui.Indent();
 			foreach (var dependency in missingDependencies)
 			{
@@ -168,7 +189,8 @@ namespace BrowserHost.Plugin
 
 		private void RenderComplete()
 		{
-			ImGui.Text("TODO: Install complete, allow close etc etc etc");
+			ImGui.Text("Dependency installation complete!");
+			if (ImGui.Button("OK", new Vector2(100, 0))) { CheckDependencies(); }
 		}
 	}
 }
