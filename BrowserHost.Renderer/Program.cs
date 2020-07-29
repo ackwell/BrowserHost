@@ -50,7 +50,7 @@ namespace BrowserHost.Renderer
 			AppDomain.CurrentDomain.FirstChanceException += (obj, e) => Console.Error.WriteLine(e.Exception.ToString());
 #endif
 
-			DxHandler.Initialise();
+			DxHandler.Initialise(args.DxgiAdapterLuid);
 			CefHandler.Initialise(cefAssemblyDir);
 
 			ipcBuffer = new IpcBuffer<DownstreamIpcRequest, UpstreamIpcRequest>(args.IpcChannelName, HandleIpcRequest);

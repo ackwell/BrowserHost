@@ -43,8 +43,7 @@ namespace BrowserHost.Plugin
 			DxHandler.Initialise(pluginInterface);
 
 			// Spin up WndProc hook
-			var hWnd = DxHandler.SwapChain.Description.OutputHandle;
-			WndProcHandler.Initialise(hWnd);
+			WndProcHandler.Initialise(DxHandler.WindowHandle);
 			WndProcHandler.WndProcMessage += OnWndProc;
 
 			// Boot the render process. This has to be done before initialising settings to prevent a

@@ -7,6 +7,7 @@ namespace BrowserHost.Common
 		public int ParentPid;
 		public string CefAssemblyDir;
 		public string DalamudAssemblyDir;
+		public long DxgiAdapterLuid;
 		public string KeepAliveHandleName;
 		public string IpcChannelName;
 
