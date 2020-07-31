@@ -103,6 +103,7 @@ namespace BrowserHost.Plugin
 		{
 			if (!open || config == null) { return; }
 
+			ImGui.SetNextWindowSizeConstraints(new Vector2(350, 250), new Vector2(9001, 9001));
 			var windowFlags = ImGuiWindowFlags.None
 				| ImGuiWindowFlags.NoScrollbar
 				| ImGuiWindowFlags.NoScrollWithMouse
