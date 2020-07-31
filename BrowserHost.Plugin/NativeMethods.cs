@@ -34,6 +34,9 @@ namespace BrowserHost.Plugin
 			return (GetKeyState((int)key) & 1) == 1;
 		}
 
+		[DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+		public static extern IntPtr GetWindowLongPtr(IntPtr hWnd, WindowLongType nIndex);
+
 		[DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
 		public static extern IntPtr SetWindowLongPtr(IntPtr hWnd, WindowLongType nIndex, IntPtr dwNewLong);
 

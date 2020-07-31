@@ -13,19 +13,24 @@ namespace BrowserHost.Plugin
 
 		private static IntPtr hWnd;
 		private static IntPtr oldWndProcPtr;
+		private static IntPtr detourPtr;
 
 		public static void Initialise(IntPtr hWnd)
 		{
 			WndProcHandler.hWnd = hWnd;
 
 			wndProcDelegate = WndProcDetour;
-			var detourPtr = Marshal.GetFunctionPointerForDelegate(wndProcDelegate);
+			detourPtr = Marshal.GetFunctionPointerForDelegate(wndProcDelegate);
 			oldWndProcPtr = NativeMethods.SetWindowLongPtr(hWnd, WindowLongType.GWL_WNDPROC, detourPtr);
 		}
 
 		public static void Shutdown()
 		{
-			if (oldWndProcPtr != IntPtr.Zero)
+			// If the current pointer doesn't match our detour, something swapped the pointer out from under us -
+			// likely the InterfaceManager doing its own cleanup. Don't reset in that case, we'll trust the cleanup
+			// is accurate.
+			var curWndProcPtr = NativeMethods.GetWindowLongPtr(hWnd, WindowLongType.GWL_WNDPROC);
+			if (oldWndProcPtr != IntPtr.Zero && curWndProcPtr == detourPtr)
 			{
 				NativeMethods.SetWindowLongPtr(hWnd, WindowLongType.GWL_WNDPROC, oldWndProcPtr);
 				oldWndProcPtr = IntPtr.Zero;
