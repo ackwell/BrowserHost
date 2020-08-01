@@ -1,8 +1,8 @@
 ﻿using Dalamud.Game.Command;
+using Dalamud.Interface;
 using Dalamud.Plugin;
 using ImGuiNET;
 using System;
-using System.Collections.Generic;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,12 +16,17 @@ namespace BrowserHost.Plugin
 		public event EventHandler<InlayConfiguration> InlayDebugged;
 		public event EventHandler<InlayConfiguration> InlayRemoved;
 
-		private bool open = false;
-
 		private DalamudPluginInterface pluginInterface;
 
 		private Configuration config;
 
+#if DEBUG
+		private bool open = true;
+#else
+		private bool open = false;
+#endif
+
+		InlayConfiguration selectedInlay = null;
 		private Timer saveDebounceTimer;
 
 		public Settings(DalamudPluginInterface pluginInterface)
@@ -53,7 +58,7 @@ namespace BrowserHost.Plugin
 
 		public void Dispose() { }
 
-		private void AddNewInlay()
+		private InlayConfiguration AddNewInlay()
 		{
 			var inlayConfig = new InlayConfiguration()
 			{
@@ -64,6 +69,8 @@ namespace BrowserHost.Plugin
 			config.Inlays.Add(inlayConfig);
 			InlayAdded?.Invoke(this, inlayConfig);
 			SaveSettings();
+
+			return inlayConfig;
 		}
 
 		private void NavigateInlay(InlayConfiguration inlayConfig)
@@ -103,64 +110,115 @@ namespace BrowserHost.Plugin
 		{
 			if (!open || config == null) { return; }
 
-			ImGui.SetNextWindowSizeConstraints(new Vector2(350, 250), new Vector2(9001, 9001));
+			// Primary window container
+			ImGui.SetNextWindowSizeConstraints(new Vector2(400, 300), new Vector2(9001, 9001));
 			var windowFlags = ImGuiWindowFlags.None
 				| ImGuiWindowFlags.NoScrollbar
 				| ImGuiWindowFlags.NoScrollWithMouse
 				| ImGuiWindowFlags.NoCollapse;
-			ImGui.Begin("Settings##BrowserHost", ref open, windowFlags);
+			ImGui.Begin("BrowserHost Settings", ref open, windowFlags);
 
-			var contentArea = ImGui.GetWindowContentRegionMax() - ImGui.GetWindowContentRegionMin();
-			var footerHeight = 30; // I hate this. TODO: Calc from GetStyle() somehow?
-			ImGui.BeginChild("inlays", new Vector2(0, contentArea.Y - footerHeight));
+			RenderPaneSelector();
 
+			// Pane details
 			var dirty = false;
-			var toRemove = new List<InlayConfiguration>();
-			foreach (var inlayConfig in config.Inlays)
+			ImGui.SameLine();
+			ImGui.BeginChild("details");
+			if (selectedInlay == null)
 			{
-				var headerOpen = true;
-
-				if (ImGui.CollapsingHeader($"{inlayConfig.Name}###header-{inlayConfig.Guid}", ref headerOpen))
-				{
-					ImGui.PushID(inlayConfig.Guid.ToString());
-
-					dirty |= ImGui.InputText("Name", ref inlayConfig.Name, 100);
-
-					dirty |= ImGui.InputText("URL", ref inlayConfig.Url, 1000);
-					if (ImGui.IsItemDeactivatedAfterEdit()) { NavigateInlay(inlayConfig); }
-
-					var true_ = true;
-					if (inlayConfig.ClickThrough) { ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f); }
-					dirty |= ImGui.Checkbox("Locked", ref inlayConfig.ClickThrough ? ref true_ : ref inlayConfig.Locked);
-					if (inlayConfig.ClickThrough) { ImGui.PopStyleVar(); }
-					if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from being resized or moved. This is implicitly set by Click Through."); }
-
-					ImGui.SameLine();
-					dirty |= ImGui.Checkbox("Click Through", ref inlayConfig.ClickThrough);
-					if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from intecepting any mouse events."); }
-
-					if (ImGui.Button("Reload")) { ReloadInlay(inlayConfig); }
-
-					ImGui.SameLine();
-					if (ImGui.Button("Open Dev Tools")) { DebugInlay(inlayConfig); }
-
-					ImGui.Dummy(new Vector2(0, 10));
-
-					ImGui.PopID();
-				}
-
-				if (!headerOpen) { toRemove.Add(inlayConfig); }
+				ImGui.Text("Select an inlay on the left to edit its settings.");
 			}
-
-			foreach (var inlayConfig in toRemove) { RemoveInlay(inlayConfig); }
-			if (dirty) { DebouncedSaveSettings();  }
-
+			else
+			{
+				dirty |= RenderInlaySettings(selectedInlay);
+			}
 			ImGui.EndChild();
-			ImGui.Separator();
 
-			if (ImGui.Button("Add new inlay")) { AddNewInlay(); }
+			if (dirty) { DebouncedSaveSettings(); }
 
 			ImGui.End();
+		}
+
+		private void RenderPaneSelector()
+		{
+			// Selector pane
+			ImGui.BeginGroup();
+			ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, 0));
+
+			// Inlay selector list
+			ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
+			ImGui.BeginChild("inlays", new Vector2(100, -ImGui.GetFrameHeightWithSpacing()), true);
+			foreach (var inlayConfig in config.Inlays)
+			{
+				if (ImGui.Selectable($"{inlayConfig.Name}##{inlayConfig.Guid}", selectedInlay == inlayConfig))
+				{
+					selectedInlay = inlayConfig;
+				}
+			}
+			ImGui.EndChild();
+			ImGui.PopStyleVar();
+
+			// Selector controls
+			ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 0);
+			ImGui.PushFont(UiBuilder.IconFont);
+
+			if (ImGui.Button(FontAwesomeIcon.Plus.ToIconString(), new Vector2(50, 0)))
+			{
+				selectedInlay = AddNewInlay();
+			}
+
+			ImGui.SameLine();
+			if (selectedInlay != null)
+			{
+				if (ImGui.Button(FontAwesomeIcon.Trash.ToIconString(), new Vector2(50, 0)))
+				{
+					var toRemove = selectedInlay;
+					selectedInlay = null;
+					RemoveInlay(toRemove);
+				}
+			}
+			else
+			{
+				ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
+				ImGui.Button(FontAwesomeIcon.Trash.ToIconString(), new Vector2(50, 0));
+				ImGui.PopStyleVar();
+			}
+
+			ImGui.PopFont();
+			ImGui.PopStyleVar(2);
+
+			ImGui.EndGroup();
+		}
+
+		private bool RenderInlaySettings(InlayConfiguration inlayConfig)
+		{
+			var dirty = false;
+
+			ImGui.PushID(inlayConfig.Guid.ToString());
+
+			dirty |= ImGui.InputText("Name", ref inlayConfig.Name, 100);
+
+			dirty |= ImGui.InputText("URL", ref inlayConfig.Url, 1000);
+			if (ImGui.IsItemDeactivatedAfterEdit()) { NavigateInlay(inlayConfig); }
+
+			var true_ = true;
+			if (inlayConfig.ClickThrough) { ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f); }
+			dirty |= ImGui.Checkbox("Locked", ref inlayConfig.ClickThrough ? ref true_ : ref inlayConfig.Locked);
+			if (inlayConfig.ClickThrough) { ImGui.PopStyleVar(); }
+			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from being resized or moved. This is implicitly set by Click Through."); }
+
+			ImGui.SameLine();
+			dirty |= ImGui.Checkbox("Click Through", ref inlayConfig.ClickThrough);
+			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from intecepting any mouse events."); }
+
+			if (ImGui.Button("Reload")) { ReloadInlay(inlayConfig); }
+
+			ImGui.SameLine();
+			if (ImGui.Button("Open Dev Tools")) { DebugInlay(inlayConfig); }
+
+			ImGui.PopID();
+
+			return dirty;
 		}
 	}
 }
