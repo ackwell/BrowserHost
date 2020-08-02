@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
+using System.Threading;
 
 namespace BrowserHost.Plugin
 {
@@ -17,6 +18,7 @@ namespace BrowserHost.Plugin
 
 		private DalamudPluginInterface pluginInterface;
 		private string pluginDir;
+		private int pid;
 
 		private DependencyManager dependencyManager;
 		private Settings settings;
@@ -28,6 +30,7 @@ namespace BrowserHost.Plugin
 		{
 			this.pluginInterface = pluginInterface;
 			pluginDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+			pid = Process.GetCurrentProcess().Id;
 
 			// Hook up render hook
 			pluginInterface.UiBuilder.OnBuildUi += Render;
@@ -35,6 +38,13 @@ namespace BrowserHost.Plugin
 			dependencyManager = new DependencyManager(pluginDir);
 			dependencyManager.DependenciesReady += (sender, args) => StartRendering();
 			dependencyManager.Initialise();
+
+			// Set up a custom resolver for ourselves so other plugins can reference us via the bridge
+			AppDomain.CurrentDomain.AssemblyResolve += BrowserHostAssemblyResolver;
+
+			// Open the ready handle to unblock any plugins that loaded early.
+			var readyWaitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, $"BrowserHostBridgeReady{pid}");
+			readyWaitHandle.Set();
 		}
 
 		private void StartRendering()
@@ -48,7 +58,6 @@ namespace BrowserHost.Plugin
 
 			// Boot the render process. This has to be done before initialising settings to prevent a
 			// race conditionson inlays recieving a null reference.
-			var pid = Process.GetCurrentProcess().Id;
 			renderProcess = new RenderProcess(pid, pluginDir, dependencyManager);
 			renderProcess.Recieve += HandleIpcRequest;
 			renderProcess.Start();
@@ -121,6 +130,14 @@ namespace BrowserHost.Plugin
 			foreach (var inlay in inlays.Values) { inlay.Render(); }
 
 			ImGui.PopStyleVar();
+		}
+
+		private Assembly BrowserHostAssemblyResolver(object sender, ResolveEventArgs args)
+		{
+			var assemblyName = args.Name.Split(new[] { ',' }, 2)[0] + ".dll";
+			return assemblyName.StartsWith("BrowserHost")
+				? Assembly.LoadFrom(Path.Combine(pluginDir, assemblyName))
+				: null;
 		}
 
 		public void Dispose()
