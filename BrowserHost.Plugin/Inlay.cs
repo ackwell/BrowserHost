@@ -16,6 +16,7 @@ namespace BrowserHost.Plugin
 
 		private RenderProcess renderProcess;
 		private TextureWrap textureWrap;
+		private Exception textureRenderException;
 
 		private bool mouseInWindow;
 		private bool windowFocused;
@@ -30,7 +31,7 @@ namespace BrowserHost.Plugin
 
 		public void Dispose()
 		{
-			textureWrap.Dispose();
+			textureWrap?.Dispose();
 			renderProcess.Send(new RemoveInlayRequest() { Guid = Config.Guid });
 		}
 
@@ -117,6 +118,13 @@ namespace BrowserHost.Plugin
 				HandleMouseEvent();
 
 				ImGui.Image(textureWrap.ImGuiHandle, new Vector2(textureWrap.Width, textureWrap.Height));
+			}
+			else if (textureRenderException != null)
+			{
+				ImGui.PushStyleColor(ImGuiCol.Text, 0xFF0000FF);
+				ImGui.Text("An error occured while building the browser inlay texture:");
+				ImGui.Text(textureRenderException.ToString());
+				ImGui.PopStyleColor();
 			}
 			ImGui.End();
 		}
@@ -230,7 +238,8 @@ namespace BrowserHost.Plugin
 			var response = renderProcess.Send<TextureHandleResponse>(request);
 
 			var oldTextureWrap = textureWrap;
-			textureWrap = BuildTextureWrap(response.TextureHandle);
+			try { textureWrap = BuildTextureWrap(response.TextureHandle); }
+			catch (Exception e) { textureRenderException = e; }
 			if (oldTextureWrap != null) { oldTextureWrap.Dispose(); }
 
 			size = currentSize;
