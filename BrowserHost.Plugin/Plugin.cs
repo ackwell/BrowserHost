@@ -45,6 +45,7 @@ namespace BrowserHost.Plugin
 			// Open the ready handle to unblock any plugins that loaded early.
 			var readyWaitHandle = new EventWaitHandle(false, EventResetMode.ManualReset, $"BrowserHostBridgeReady{pid}");
 			readyWaitHandle.Set();
+			readyWaitHandle.Dispose();
 		}
 
 		private void StartRendering()

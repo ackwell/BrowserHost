@@ -16,6 +16,7 @@ namespace BrowserHost.Bridge
 			var ready = waitHandle.WaitOne(0);
 			if (ready)
 			{
+				waitHandle.Dispose();
 				callback();
 				return;
 			}
@@ -25,6 +26,7 @@ namespace BrowserHost.Bridge
 			{
 				// TODO: Drop this to like 5-10s, handle error if BH not avail
 				waitHandle.WaitOne(Timeout.Infinite);
+				waitHandle.Dispose();
 				callback();
 			});
 			thread.Start();
