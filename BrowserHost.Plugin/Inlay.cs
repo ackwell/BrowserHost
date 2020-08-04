@@ -13,11 +13,10 @@ namespace BrowserHost.Plugin
 
 		private BrowserWidget browserWidget;
 
-		public Inlay(RenderProcess renderProcess, InlayConfiguration config)
+		public Inlay(InlayConfiguration config, BrowserWidget browserWidget)
 		{
 			Config = config;
-
-			browserWidget = new BrowserWidget(renderProcess, config.Guid, config.Url);
+			this.browserWidget = browserWidget;
 		}
 
 		public void Dispose()
@@ -33,18 +32,6 @@ namespace BrowserHost.Plugin
 		public void Debug()
 		{
 			browserWidget.Debug();
-		}
-
-		// TODO: THIS SHOULD BYPASS STRAIGHT TO THE WIDGET
-		public void SetCursor(Cursor cursor)
-		{
-			browserWidget.SetCursor(cursor);
-		}
-
-		// TODO: THIS SHOULD BYPASS STRAIGHT TO THE WIDGET
-		public (bool, long) WndProcMessage(WindowsMessage msg, ulong wParam, long lParam)
-		{
-			return browserWidget.WndProcMessage(msg, wParam, lParam);
 		}
 
 		public void Render()

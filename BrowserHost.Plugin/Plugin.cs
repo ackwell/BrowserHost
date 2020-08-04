@@ -25,6 +25,7 @@ namespace BrowserHost.Plugin
 
 		private RenderProcess renderProcess;
 		private Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
+		private Dictionary<Guid, WeakReference<BrowserWidget>> widgets = new Dictionary<Guid, WeakReference<BrowserWidget>>();
 
 		public void Initialize(DalamudPluginInterface pluginInterface)
 		{
@@ -76,13 +77,23 @@ namespace BrowserHost.Plugin
 		{
 			// Notify all the inlays of the wndproc, respond with the first capturing response (if any)
 			// TODO: Yeah this ain't great but realistically only one will capture at any one time for now. Revisit if shit breaks or something idfk.
-			var responses = inlays.Select(pair => pair.Value.WndProcMessage(msg, wParam, lParam));
+			var responses = widgets.Select(pair =>
+			{
+				BrowserWidget widget;
+				pair.Value.TryGetTarget(out widget);
+				return widget != null
+					? widget.WndProcMessage(msg, wParam, lParam)
+					: (false, 0);
+			});
 			return responses.FirstOrDefault(pair => pair.Item1);
 		}
 
 		private void OnInlayAdded(object sender, InlayConfiguration config)
 		{
-			var inlay = new Inlay(renderProcess, config);
+			var widget = new BrowserWidget(renderProcess, config.Guid, config.Url);
+			widgets.Add(config.Guid, new WeakReference<BrowserWidget>(widget));
+
+			var inlay = new Inlay(config, widget);
 			inlays.Add(inlay.Config.Guid, inlay);
 		}
 
@@ -111,8 +122,9 @@ namespace BrowserHost.Plugin
 			{
 				case SetCursorRequest setCursorRequest:
 				{
-					var inlay = inlays[setCursorRequest.Guid];
-					inlay.SetCursor(setCursorRequest.Cursor);
+					BrowserWidget widget = null;
+					widgets[setCursorRequest.Guid]?.TryGetTarget(out widget);
+					if (widget != null) { widget.SetCursor(setCursorRequest.Cursor); }
 					return null;
 				}
 
