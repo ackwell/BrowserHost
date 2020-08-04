@@ -24,7 +24,6 @@ namespace BrowserHost.Plugin
 		private Settings settings;
 
 		private Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
-		private Dictionary<Guid, WeakReference<BrowserWidget>> widgets = new Dictionary<Guid, WeakReference<BrowserWidget>>();
 
 		public void Initialize(DalamudPluginInterface pluginInterface)
 		{
@@ -55,12 +54,12 @@ namespace BrowserHost.Plugin
 
 			// Spin up WndProc hook
 			WndProcHandler.Initialise(DxHandler.WindowHandle);
-			WndProcHandler.WndProcMessage += OnWndProc;
+			WndProcHandler.WndProcMessage += WidgetManager.OnWndProc;
 
 			// Boot the render process. This has to be done before initialising settings to prevent a
 			// race condition on inlays recieving a null reference.
 			RenderProcess.Initialise(pid, pluginDir, dependencyManager.GetDependencyPathFor("cef"));
-			RenderProcess.Recieve += HandleIpcRequest;
+			RenderProcess.Recieve += WidgetManager.HandleIpcRequest;
 			RenderProcess.Start();
 
 			// Prep settings
@@ -72,25 +71,9 @@ namespace BrowserHost.Plugin
 			settings.Initialise();
 		}
 
-		private (bool, long) OnWndProc(WindowsMessage msg, ulong wParam, long lParam)
-		{
-			// Notify all the inlays of the wndproc, respond with the first capturing response (if any)
-			// TODO: Yeah this ain't great but realistically only one will capture at any one time for now. Revisit if shit breaks or something idfk.
-			var responses = widgets.Select(pair =>
-			{
-				BrowserWidget widget;
-				pair.Value.TryGetTarget(out widget);
-				return widget != null
-					? widget.WndProcMessage(msg, wParam, lParam)
-					: (false, 0);
-			});
-			return responses.FirstOrDefault(pair => pair.Item1);
-		}
-
 		private void OnInlayAdded(object sender, InlayConfiguration config)
 		{
-			var widget = new BrowserWidget(config.Url);
-			widgets.Add(widget.Guid, new WeakReference<BrowserWidget>(widget));
+			var widget = WidgetManager.CreateWidget(config.Url);
 
 			var inlay = new Inlay(config, widget);
 			inlays.Add(inlay.Config.Guid, inlay);
@@ -113,23 +96,6 @@ namespace BrowserHost.Plugin
 			var inlay = inlays[config.Guid];
 			inlays.Remove(config.Guid);
 			inlay.Dispose();
-		}
-
-		private object HandleIpcRequest(object sender, UpstreamIpcRequest request)
-		{
-			switch (request)
-			{
-				case SetCursorRequest setCursorRequest:
-				{
-					BrowserWidget widget = null;
-					widgets[setCursorRequest.Guid]?.TryGetTarget(out widget);
-					if (widget != null) { widget.SetCursor(setCursorRequest.Cursor); }
-					return null;
-				}
-
-				default:
-					throw new Exception($"Unknown IPC request type {request.GetType().Name} received.");
-			}
 		}
 
 		private void Render()

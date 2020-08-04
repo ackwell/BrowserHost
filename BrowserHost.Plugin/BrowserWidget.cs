@@ -8,7 +8,7 @@ using System.Numerics;
 
 namespace BrowserHost.Plugin
 {
-	class BrowserWidget : IDisposable
+	public class BrowserWidget : IDisposable
 	{
 		public Guid Guid { get; } = Guid.NewGuid();
 
@@ -25,7 +25,7 @@ namespace BrowserHost.Plugin
 		private ImGuiMouseCursor cursor;
 
 		// TODO: URL but not shit like this
-		public BrowserWidget(string url)
+		internal BrowserWidget(string url)
 		{
 			this.url = url;
 		}
@@ -47,7 +47,7 @@ namespace BrowserHost.Plugin
 			RenderProcess.Send(new DebugInlayRequest() { Guid = Guid });
 		}
 
-		public void SetCursor(Cursor cursor)
+		internal void SetCursor(Cursor cursor)
 		{
 			this.cursor = DecodeCursor(cursor);
 		}
@@ -97,7 +97,7 @@ namespace BrowserHost.Plugin
 			return new D3DTextureWrap(view, texture.Description.Width, texture.Description.Height);
 		}
 
-		public (bool, long) WndProcMessage(WindowsMessage msg, ulong wParam, long lParam)
+		internal (bool, long) WndProcMessage(WindowsMessage msg, ulong wParam, long lParam)
 		{
 			// On click, set the capture state of the KB to that of the mouse - effectively providing
 			// "focus" handling for the widget. We're avoiding ImGui for this, as we want to check for
