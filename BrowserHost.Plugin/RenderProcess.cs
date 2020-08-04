@@ -31,6 +31,7 @@ namespace BrowserHost.Plugin
 				ParentPid = pid,
 				DalamudAssemblyDir = AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
 				CefAssemblyDir = dependencyManager.GetDependencyPathFor("cef"),
+				CefCacheDir = Path.Combine(Path.GetDirectoryName(pluginDir), "cef-cache"),
 				DxgiAdapterLuid = DxHandler.AdapterLuid,
 				KeepAliveHandleName = keepAliveHandleName,
 				IpcChannelName = ipcChannelName,

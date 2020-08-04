@@ -51,7 +51,7 @@ namespace BrowserHost.Renderer
 #endif
 
 			DxHandler.Initialise(args.DxgiAdapterLuid);
-			CefHandler.Initialise(cefAssemblyDir);
+			CefHandler.Initialise(cefAssemblyDir, args.CefCacheDir);
 
 			ipcBuffer = new IpcBuffer<DownstreamIpcRequest, UpstreamIpcRequest>(args.IpcChannelName, HandleIpcRequest);
 

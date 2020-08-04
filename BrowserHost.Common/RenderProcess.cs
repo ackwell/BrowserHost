@@ -6,6 +6,7 @@ namespace BrowserHost.Common
 	{
 		public int ParentPid;
 		public string CefAssemblyDir;
+		public string CefCacheDir;
 		public string DalamudAssemblyDir;
 		public long DxgiAdapterLuid;
 		public string KeepAliveHandleName;
