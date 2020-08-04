@@ -90,7 +90,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalCefFiles Include="cef\**\*"/>
+    <AdditionalCefFiles Include="cef\**\*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BrowserHost.Common\BrowserHost.Common.csproj">
@@ -113,10 +113,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="CopyVersionFiles" AfterTargets="Build">
-    <Copy
-      SourceFiles="@(AdditionalCefFiles)"
-      DestinationFolder="$(OutDir)\$(CefSharpTargetDir)\%(RecursiveDir)"
-    />
+    <Copy SourceFiles="@(AdditionalCefFiles)" DestinationFolder="$(OutDir)\$(CefSharpTargetDir)\%(RecursiveDir)" />
   </Target>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
