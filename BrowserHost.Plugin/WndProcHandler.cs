@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace BrowserHost.Plugin
 {
-	class WndProcHandler
+	static class WndProcHandler
 	{
 		public delegate (bool, long) WndProcMessageDelegate(WindowsMessage msg, ulong wParam, long lParam);
 		public static event WndProcMessageDelegate WndProcMessage;

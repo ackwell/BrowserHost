@@ -15,7 +15,6 @@ namespace BrowserHost.Plugin
 		private Vector2 size;
 		private string url;
 
-		private RenderProcess renderProcess;
 		private TextureWrap textureWrap;
 		private Exception textureRenderException;
 
@@ -26,27 +25,26 @@ namespace BrowserHost.Plugin
 		private ImGuiMouseCursor cursor;
 
 		// TODO: URL but not shit like this
-		public BrowserWidget(RenderProcess renderProcess, string url)
+		public BrowserWidget(string url)
 		{
-			this.renderProcess = renderProcess;
 			this.url = url;
 		}
 
 		public void Dispose()
 		{
 			textureWrap?.Dispose();
-			renderProcess.Send(new RemoveInlayRequest() { Guid = Guid });
+			RenderProcess.Send(new RemoveInlayRequest() { Guid = Guid });
 		}
 
 		public void Navigate(string newUrl)
 		{
 			url = newUrl;
-			renderProcess.Send(new NavigateInlayRequest() { Guid = Guid, Url = url });
+			RenderProcess.Send(new NavigateInlayRequest() { Guid = Guid, Url = url });
 		}
 
 		public void Debug()
 		{
-			renderProcess.Send(new DebugInlayRequest() { Guid = Guid });
+			RenderProcess.Send(new DebugInlayRequest() { Guid = Guid });
 		}
 
 		public void SetCursor(Cursor cursor)
@@ -76,7 +74,7 @@ namespace BrowserHost.Plugin
 					Height = (int)newSize.Y,
 				} as DownstreamIpcRequest;
 
-			var response = renderProcess.Send<TextureHandleResponse>(request);
+			var response = RenderProcess.Send<TextureHandleResponse>(request);
 
 			var oldTextureWrap = textureWrap;
 			try { textureWrap = BuildTextureWrap(response.TextureHandle); }
@@ -140,7 +138,7 @@ namespace BrowserHost.Plugin
 			if (eventType == KeyEventType.KeyDown) { modifier |= modifierAdjust; }
 			else if (eventType == KeyEventType.KeyUp) { modifier &= ~modifierAdjust; }
 
-			renderProcess.Send(new KeyEventRequest()
+			RenderProcess.Send(new KeyEventRequest()
 			{
 				Guid = Guid,
 				Type = eventType.Value,
@@ -176,7 +174,7 @@ namespace BrowserHost.Plugin
 		private void HandleMouseEvent()
 		{
 			// Render proc won't be ready on first boot
-			if (renderProcess == null) { return; }
+			if (!RenderProcess.Running) { return; }
 
 			var io = ImGui.GetIO();
 			var mousePos = io.MousePos - ImGui.GetCursorScreenPos();
@@ -185,7 +183,7 @@ namespace BrowserHost.Plugin
 			if (shouldMouseLeave)
 			{
 				shouldMouseLeave = false;
-				renderProcess.Send(new MouseEventRequest()
+				RenderProcess.Send(new MouseEventRequest()
 				{
 					Guid = Guid,
 					X = mousePos.X,
@@ -217,7 +215,7 @@ namespace BrowserHost.Plugin
 			if (io.KeyAlt) { modifier |= InputModifier.Alt; }
 
 			// TODO: Either this or the entire handler function should be asynchronous so we're not blocking the entire draw thread
-			renderProcess.Send(new MouseEventRequest()
+			RenderProcess.Send(new MouseEventRequest()
 			{
 				Guid = Guid,
 				X = mousePos.X,

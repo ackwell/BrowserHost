@@ -7,30 +7,30 @@ using System.Threading;
 
 namespace BrowserHost.Plugin
 {
-	class RenderProcess : IDisposable
+	static class RenderProcess
 	{
 		public delegate object RecieveEventHandler(object sender, UpstreamIpcRequest request);
-		public event RecieveEventHandler Recieve;
+		public static event RecieveEventHandler Recieve;
 
-		private Process process;
-		private IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest> ipc;
-		private bool running;
+		public static bool Running;
+		private static Process process;
+		private static IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest> ipc;
 
-		private string keepAliveHandleName;
-		private string ipcChannelName;
+		private static string keepAliveHandleName;
+		private static string ipcChannelName;
 
-		public RenderProcess(int pid, string pluginDir, DependencyManager dependencyManager)
+		public static void Initialise(int pid, string pluginDir, string cefAssemblyDir)
 		{
 			keepAliveHandleName = $"BrowserHostRendererKeepAlive{pid}";
 			ipcChannelName = $"BrowserHostRendererIpcChannel{pid}";
 
-			ipc = new IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest>(ipcChannelName, request => Recieve?.Invoke(this, request));
+			ipc = new IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest>(ipcChannelName, request => Recieve?.Invoke(null, request));
 
 			var processArgs = new RenderProcessArguments()
 			{
 				ParentPid = pid,
 				DalamudAssemblyDir = AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
-				CefAssemblyDir = dependencyManager.GetDependencyPathFor("cef"),
+				CefAssemblyDir = cefAssemblyDir,
 				DxgiAdapterLuid = DxHandler.AdapterLuid,
 				KeepAliveHandleName = keepAliveHandleName,
 				IpcChannelName = ipcChannelName,
@@ -51,28 +51,29 @@ namespace BrowserHost.Plugin
 			process.ErrorDataReceived += (sender, args) => PluginLog.LogError($"[Render]: {args.Data}");
 		}
 
-		public void Start()
+		public static void Start()
 		{
-			if (running) { return; }
-			running = true;
+			if (Running) { return; }
 
 			process.Start();
 			process.BeginOutputReadLine();
 			process.BeginErrorReadLine();
+
+			Running = true;
 		}
 
-		public void Send(DownstreamIpcRequest request) { Send<object>(request); }
+		public static void Send(DownstreamIpcRequest request) { Send<object>(request); }
 
 		// TODO: Option to wrap this func in an async version?
-		public TResponse Send<TResponse>(DownstreamIpcRequest request)
+		public static TResponse Send<TResponse>(DownstreamIpcRequest request)
 		{
 			return ipc.RemoteRequest<TResponse>(request);
 		}
 
-		public void Stop()
+		public static void Stop()
 		{
-			if (!running) { return; }
-			running = false;
+			if (!Running) { return; }
+			Running = false;
 
 			// Grab the handle the process is waiting on and open it up
 			var handle = new EventWaitHandle(false, EventResetMode.ManualReset, keepAliveHandleName);
@@ -85,7 +86,7 @@ namespace BrowserHost.Plugin
 			catch (InvalidOperationException) { }
 		}
 
-		public void Dispose()
+		public static void Shutdown()
 		{
 			Stop();
 

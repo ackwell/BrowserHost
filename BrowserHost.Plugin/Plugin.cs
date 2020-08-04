@@ -23,7 +23,6 @@ namespace BrowserHost.Plugin
 		private DependencyManager dependencyManager;
 		private Settings settings;
 
-		private RenderProcess renderProcess;
 		private Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 		private Dictionary<Guid, WeakReference<BrowserWidget>> widgets = new Dictionary<Guid, WeakReference<BrowserWidget>>();
 
@@ -59,10 +58,10 @@ namespace BrowserHost.Plugin
 			WndProcHandler.WndProcMessage += OnWndProc;
 
 			// Boot the render process. This has to be done before initialising settings to prevent a
-			// race conditionson inlays recieving a null reference.
-			renderProcess = new RenderProcess(pid, pluginDir, dependencyManager);
-			renderProcess.Recieve += HandleIpcRequest;
-			renderProcess.Start();
+			// race condition on inlays recieving a null reference.
+			RenderProcess.Initialise(pid, pluginDir, dependencyManager.GetDependencyPathFor("cef"));
+			RenderProcess.Recieve += HandleIpcRequest;
+			RenderProcess.Start();
 
 			// Prep settings
 			settings = new Settings(pluginInterface);
@@ -90,7 +89,7 @@ namespace BrowserHost.Plugin
 
 		private void OnInlayAdded(object sender, InlayConfiguration config)
 		{
-			var widget = new BrowserWidget(renderProcess, config.Url);
+			var widget = new BrowserWidget(config.Url);
 			widgets.Add(widget.Guid, new WeakReference<BrowserWidget>(widget));
 
 			var inlay = new Inlay(config, widget);
@@ -158,7 +157,7 @@ namespace BrowserHost.Plugin
 			foreach (var inlay in inlays.Values) { inlay.Dispose(); }
 			inlays.Clear();
 
-			renderProcess?.Dispose();
+			RenderProcess.Shutdown();
 
 			settings?.Dispose();
 
