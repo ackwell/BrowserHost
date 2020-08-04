@@ -90,8 +90,8 @@ namespace BrowserHost.Plugin
 
 		private void OnInlayAdded(object sender, InlayConfiguration config)
 		{
-			var widget = new BrowserWidget(renderProcess, config.Guid, config.Url);
-			widgets.Add(config.Guid, new WeakReference<BrowserWidget>(widget));
+			var widget = new BrowserWidget(renderProcess, config.Url);
+			widgets.Add(widget.Guid, new WeakReference<BrowserWidget>(widget));
 
 			var inlay = new Inlay(config, widget);
 			inlays.Add(inlay.Config.Guid, inlay);

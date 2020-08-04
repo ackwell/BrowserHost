@@ -10,7 +10,7 @@ namespace BrowserHost.Plugin
 {
 	class BrowserWidget : IDisposable
 	{
-		private Guid guid;
+		public Guid Guid { get; } = Guid.NewGuid();
 
 		private Vector2 size;
 		private string url;
@@ -25,33 +25,28 @@ namespace BrowserHost.Plugin
 		private InputModifier modifier;
 		private ImGuiMouseCursor cursor;
 
-		// TODO: guid passed in? is there any reason inlay guid needs to equal the inlay guid?
-		// theoretically this work should totally decouple inlays from the browserprocess,
-		// ergo we might be able to use transient guids here.
 		// TODO: URL but not shit like this
-		public BrowserWidget(RenderProcess renderProcess, Guid guid, string url)
+		public BrowserWidget(RenderProcess renderProcess, string url)
 		{
 			this.renderProcess = renderProcess;
-			this.guid = guid;
-
 			this.url = url;
 		}
 
 		public void Dispose()
 		{
 			textureWrap?.Dispose();
-			renderProcess.Send(new RemoveInlayRequest() { Guid = guid });
+			renderProcess.Send(new RemoveInlayRequest() { Guid = Guid });
 		}
 
 		public void Navigate(string newUrl)
 		{
 			url = newUrl;
-			renderProcess.Send(new NavigateInlayRequest() { Guid = guid, Url = url });
+			renderProcess.Send(new NavigateInlayRequest() { Guid = Guid, Url = url });
 		}
 
 		public void Debug()
 		{
-			renderProcess.Send(new DebugInlayRequest() { Guid = guid });
+			renderProcess.Send(new DebugInlayRequest() { Guid = Guid });
 		}
 
 		public void SetCursor(Cursor cursor)
@@ -69,14 +64,14 @@ namespace BrowserHost.Plugin
 			var request = size == Vector2.Zero
 				? new NewInlayRequest()
 				{
-					Guid = guid,
+					Guid = Guid,
 					Url = url,
 					Width = (int)newSize.X,
 					Height = (int)newSize.Y,
 				}
 				: new ResizeInlayRequest()
 				{
-					Guid = guid,
+					Guid = Guid,
 					Width = (int)newSize.X,
 					Height = (int)newSize.Y,
 				} as DownstreamIpcRequest;
@@ -147,7 +142,7 @@ namespace BrowserHost.Plugin
 
 			renderProcess.Send(new KeyEventRequest()
 			{
-				Guid = guid,
+				Guid = Guid,
 				Type = eventType.Value,
 				SystemKey = isSystemKey,
 				UserKeyCode = (int)wParam,
@@ -192,7 +187,7 @@ namespace BrowserHost.Plugin
 				shouldMouseLeave = false;
 				renderProcess.Send(new MouseEventRequest()
 				{
-					Guid = guid,
+					Guid = Guid,
 					X = mousePos.X,
 					Y = mousePos.Y,
 					Leaving = true,
@@ -224,7 +219,7 @@ namespace BrowserHost.Plugin
 			// TODO: Either this or the entire handler function should be asynchronous so we're not blocking the entire draw thread
 			renderProcess.Send(new MouseEventRequest()
 			{
-				Guid = guid,
+				Guid = Guid,
 				X = mousePos.X,
 				Y = mousePos.Y,
 				Down = down,
