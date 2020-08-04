@@ -1,11 +1,9 @@
-﻿using BrowserHost.Common;
-using Dalamud.Plugin;
+﻿using Dalamud.Plugin;
 using ImGuiNET;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Numerics;
 using System.Reflection;
 using System.Threading;

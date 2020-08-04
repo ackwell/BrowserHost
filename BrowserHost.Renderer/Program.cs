@@ -1,6 +1,6 @@
 ﻿using BrowserHost.Common;
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -20,7 +20,7 @@ namespace BrowserHost.Renderer
 
 		private static IpcBuffer<DownstreamIpcRequest, UpstreamIpcRequest> ipcBuffer;
 
-		private static Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
+		private static ConcurrentDictionary<Guid, Inlay> inlays = new ConcurrentDictionary<Guid, Inlay>();
 
 		static void Main(string[] rawArgs)
 		{
@@ -92,7 +92,7 @@ namespace BrowserHost.Renderer
 					// TODO: Move bulk of this into a method
 					var inlay = new Inlay(newInlayRequest.Url, new Size(newInlayRequest.Width, newInlayRequest.Height));
 					inlay.Initialise();
-					inlays.Add(newInlayRequest.Guid, inlay);
+					inlays.AddOrUpdate(newInlayRequest.Guid, inlay, (guid, oldInlay) => inlay);
 					inlay.CursorChanged += (sender, cursor) =>
 					{
 						ipcBuffer.RemoteRequest<object>(new SetCursorRequest()
@@ -129,7 +129,7 @@ namespace BrowserHost.Renderer
 				case RemoveInlayRequest removeInlayRequest:
 				{
 					var inlay = inlays[removeInlayRequest.Guid];
-					inlays.Remove(removeInlayRequest.Guid);
+					inlays.TryRemove(removeInlayRequest.Guid, out Inlay _);
 					inlay.Dispose();
 					return null;
 				}

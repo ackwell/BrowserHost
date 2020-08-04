@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 namespace BrowserHost.Plugin
 {
@@ -11,8 +12,17 @@ namespace BrowserHost.Plugin
 
 		public static BrowserWidget CreateWidget(string url)
 		{
+			return CreateWidget(url, new Vector2(640, 480));
+		}
+
+		public static BrowserWidget CreateWidget(string url, Vector2 size)
+		{
 			var widget = new BrowserWidget(url);
 			widgets.Add(widget.Guid, new WeakReference<BrowserWidget>(widget));
+
+			// Alway "resize" once before returning to make sure the rendering has been spun up.
+			// TODO: Probably should do this differently heh
+			widget.Resize(size);
 
 			return widget;
 		}
