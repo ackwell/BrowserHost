@@ -22,6 +22,7 @@ namespace BrowserHost.Renderer
 
 		private ChromiumWebBrowser browser;
 		private TextureRenderHandler renderHandler;
+		private JsApi jsApi;
 
 		public Inlay(string url, Size size)
 		{
@@ -53,6 +54,15 @@ namespace BrowserHost.Renderer
 				WindowlessFrameRate = 60,
 			};
 
+			// Register the JS API
+			browser.JavascriptObjectRepository.ResolveObject += (sender, args) =>
+			{
+				if (args.ObjectName != "hostApi") { return; }
+
+				if (jsApi == null) { jsApi = new JsApi(); }
+				args.ObjectRepository.Register(args.ObjectName, jsApi, isAsync: true);
+			};
+
 			// Ready, boot up the browser
 			browser.CreateBrowser(windowInfo, browserSettings);
 
@@ -65,6 +75,8 @@ namespace BrowserHost.Renderer
 			browser.RenderHandler = null;
 			renderHandler.Dispose();
 			browser.Dispose();
+
+			jsApi?.Dispose();
 		}
 
 		public void Navigate(string newUrl)
@@ -79,6 +91,13 @@ namespace BrowserHost.Renderer
 			// Otherwise load regularly
 			url = newUrl;
 			browser.Load(newUrl);
+		}
+
+		public void Send(string name, object data)
+		{
+			// TODO: Queue?
+			Console.WriteLine($"WOULD SEND {name}");
+			jsApi?.Send(name, data);
 		}
 
 		public void Debug()

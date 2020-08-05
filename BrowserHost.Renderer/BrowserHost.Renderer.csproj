@@ -81,6 +81,7 @@
     <Compile Include="CefHandler.cs" />
     <Compile Include="DxHandler.cs" />
     <Compile Include="Inlay.cs" />
+    <Compile Include="JsApi.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TextureRenderHandler.cs" />
@@ -90,7 +91,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalCefFiles Include="cef\**\*"/>
+    <AdditionalCefFiles Include="cef\**\*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BrowserHost.Common\BrowserHost.Common.csproj">
@@ -113,10 +114,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="CopyVersionFiles" AfterTargets="Build">
-    <Copy
-      SourceFiles="@(AdditionalCefFiles)"
-      DestinationFolder="$(OutDir)\$(CefSharpTargetDir)\%(RecursiveDir)"
-    />
+    <Copy SourceFiles="@(AdditionalCefFiles)" DestinationFolder="$(OutDir)\$(CefSharpTargetDir)\%(RecursiveDir)" />
   </Target>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

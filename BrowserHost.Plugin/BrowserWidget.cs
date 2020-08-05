@@ -5,6 +5,8 @@ using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
 using System;
 using System.Numerics;
+using System.Reflection;
+using System.Diagnostics;
 
 namespace BrowserHost.Plugin
 {
@@ -45,6 +47,35 @@ namespace BrowserHost.Plugin
 		public void Debug()
 		{
 			RenderProcess.Send(new DebugInlayRequest() { Guid = Guid });
+		}
+
+		public void Send(string name) { Send(name, null); }
+		public void Send(string name, object data)
+		{
+			var currentAssembly = Assembly.GetExecutingAssembly();
+
+			// Check the call stack for a function in a different assembly
+			Assembly callingAssembly = null;
+			var frames = new StackTrace().GetFrames();
+			foreach (var frame in frames)
+			{
+				callingAssembly = frame.GetMethod().DeclaringType.Assembly;
+				if (callingAssembly != currentAssembly) { break; }
+			}
+
+			// Nothing from outside our assembly, use current
+			if (callingAssembly == null)
+			{
+				callingAssembly = currentAssembly;
+			}
+
+			// Send down the wire
+			RenderProcess.Send(new EventInlayRequest()
+			{
+				Guid = Guid,
+				Name = $"{callingAssembly.GetName().Name}:{name}",
+				Data = data,
+			});
 		}
 
 		internal void SetCursor(Cursor cursor)

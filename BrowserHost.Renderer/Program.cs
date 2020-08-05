@@ -1,6 +1,6 @@
 ﻿using BrowserHost.Common;
 using System;
-using System.Collections.Concurrent
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -123,6 +123,13 @@ namespace BrowserHost.Renderer
 				{
 					var inlay = inlays[debugInlayRequest.Guid];
 					inlay.Debug();
+					return null;
+				}
+
+				case EventInlayRequest eventInlayRequest:
+				{
+					var inlay = inlays[eventInlayRequest.Guid];
+					inlay.Send(eventInlayRequest.Name, eventInlayRequest.Data);
 					return null;
 				}
 

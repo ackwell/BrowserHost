@@ -63,6 +63,21 @@ namespace BrowserHost.Common
 	}
 
 	[Serializable]
+	public class EventInlayRequest : DownstreamIpcRequest
+	{
+		public Guid Guid;
+		public string Name;
+		// TODO: I'm _really_ unhappy about using json for this. Look (further) into arbitrary binary serialization
+		//       like AnySerialize and such.
+		private string data;
+		public object Data
+		{
+			get { return TinyJson.JSONParser.FromJson<object>(data); }
+			set { data = TinyJson.JSONWriter.ToJson(value); }
+		}
+	}
+
+	[Serializable]
 	public class RemoveInlayRequest : DownstreamIpcRequest
 	{
 		public Guid Guid;
