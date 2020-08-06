@@ -8,6 +8,7 @@ namespace BrowserHost.Renderer
 	{
 		public static void Initialise(string cefAssemblyPath)
 		{
+			// Base CEF settings
 			var settings = new CefSettings()
 			{
 				BrowserSubprocessPath = Path.Combine(cefAssemblyPath, "CefSharp.BrowserSubprocess.exe"),
@@ -15,6 +16,14 @@ namespace BrowserHost.Renderer
 			settings.CefCommandLineArgs["autoplay-policy"] = "no-user-gesture-required";
 			settings.EnableAudio();
 			settings.SetOffScreenRenderingBestPerformanceArgs();
+
+			// Configure our xiv-specific scheme
+			settings.RegisterScheme(new CefCustomScheme()
+			{
+				SchemeName = "sqpack",
+				IsSecure = true,
+				SchemeHandlerFactory = new SqpackSchemeHandlerFactory(),
+			});
 
 			Cef.Initialize(settings, performDependencyCheck: false, browserProcessHandler: null);
 		}

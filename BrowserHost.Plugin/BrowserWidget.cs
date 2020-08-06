@@ -49,8 +49,7 @@ namespace BrowserHost.Plugin
 			RenderProcess.Send(new DebugInlayRequest() { Guid = Guid });
 		}
 
-		public void Send(string name) { Send(name, null); }
-		public void Send(string name, object data)
+		public void Send(string name, object data = null)
 		{
 			var currentAssembly = Assembly.GetExecutingAssembly();
 

@@ -55,6 +55,8 @@ namespace BrowserHost.Renderer
 			};
 
 			// Register the JS API
+			// TODO: Restrict to inlays opting into the api
+			// TODO: Set up a proper client-side api. will need IRenderProcessMessageHandler and a chunk of injected code
 			browser.JavascriptObjectRepository.ResolveObject += (sender, args) =>
 			{
 				if (args.ObjectName != "hostApi") { return; }
@@ -95,8 +97,6 @@ namespace BrowserHost.Renderer
 
 		public void Send(string name, object data)
 		{
-			// TODO: Queue?
-			Console.WriteLine($"WOULD SEND {name}");
 			jsApi?.Send(name, data);
 		}
 
