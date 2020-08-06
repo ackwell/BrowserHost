@@ -5,6 +5,7 @@ namespace BrowserHost.Common
 	public class RenderProcessArguments
 	{
 		public int ParentPid;
+		public string SqpackDataDir;
 		public string CefAssemblyDir;
 		public string DalamudAssemblyDir;
 		public long DxgiAdapterLuid;

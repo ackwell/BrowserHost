@@ -6,7 +6,7 @@ namespace BrowserHost.Renderer
 {
 	static class CefHandler
 	{
-		public static void Initialise(string cefAssemblyPath)
+		public static void Initialise(string cefAssemblyPath, Lumina.Lumina lumina)
 		{
 			// Base CEF settings
 			var settings = new CefSettings()
@@ -22,7 +22,7 @@ namespace BrowserHost.Renderer
 			{
 				SchemeName = "sqpack",
 				IsSecure = true,
-				SchemeHandlerFactory = new SqpackSchemeHandlerFactory(),
+				SchemeHandlerFactory = new SqpackSchemeHandlerFactory(lumina),
 			});
 
 			Cef.Initialize(settings, performDependencyCheck: false, browserProcessHandler: null);

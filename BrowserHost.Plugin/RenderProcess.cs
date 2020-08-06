@@ -29,6 +29,8 @@ namespace BrowserHost.Plugin
 			var processArgs = new RenderProcessArguments()
 			{
 				ParentPid = pid,
+				// TODO: This has to be kept in sync with reality. Probably a safe bet, but would be nice to use dalamud's lumina's DataPath.
+				SqpackDataDir = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName), "sqpack"),
 				DalamudAssemblyDir = AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
 				CefAssemblyDir = cefAssemblyDir,
 				DxgiAdapterLuid = DxHandler.AdapterLuid,

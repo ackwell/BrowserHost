@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -50,8 +51,13 @@ namespace BrowserHost.Renderer
 			AppDomain.CurrentDomain.FirstChanceException += (obj, e) => Console.Error.WriteLine(e.Exception.ToString());
 #endif
 
+			// Set up an instance of lumina for the renderer to use
+			// TODO: Default language handling. Likely should reflect in plugin for that info.
+			var lumina = new Lumina.Lumina(args.SqpackDataDir);
+
+			// Initialise the rendering logic
 			DxHandler.Initialise(args.DxgiAdapterLuid);
-			CefHandler.Initialise(cefAssemblyDir);
+			CefHandler.Initialise(cefAssemblyDir, lumina);
 
 			ipcBuffer = new IpcBuffer<DownstreamIpcRequest, UpstreamIpcRequest>(args.IpcChannelName, HandleIpcRequest);
 
@@ -164,12 +170,16 @@ namespace BrowserHost.Renderer
 		{
 			var assemblyName = args.Name.Split(new[] { ',' }, 2)[0] + ".dll";
 
+			// TODO: Cache this?
+			var dalamudAssemblies = Directory.GetFiles(dalamudAssemblyDir, "*.dll", SearchOption.TopDirectoryOnly)
+				.Select(path => Path.GetFileName(path));
+
 			string assemblyPath = null;
 			if (assemblyName.StartsWith("CefSharp"))
 			{
 				assemblyPath = Path.Combine(cefAssemblyDir, assemblyName);
 			}
-			else if (assemblyName.StartsWith("SharpDX"))
+			else if (dalamudAssemblies.Any(name => name == assemblyName))
 			{
 				assemblyPath = Path.Combine(dalamudAssemblyDir, assemblyName);
 			}

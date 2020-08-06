@@ -52,6 +52,10 @@
     <DefineConstants>TRACE;DEBUG</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Lumina">
+      <HintPath>..\..\Dalamud\Dalamud\bin\Release\Lumina.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="SharedMemory, Version=2.2.3.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\SharedMemory.2.2.3\lib\net47\SharedMemory.dll</HintPath>
     </Reference>
@@ -70,6 +74,9 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Drawing.Common">
+      <HintPath>..\..\Dalamud\Dalamud\bin\Release\System.Drawing.Common.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
