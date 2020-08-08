@@ -107,6 +107,14 @@ namespace BrowserHost.Renderer
 							Cursor = cursor
 						});
 					};
+					inlay.EventDispatched += (sender, name) =>
+					{
+						ipcBuffer.RemoteRequest<object>(new UpstreamEventRequest()
+						{
+							Guid = newInlayRequest.Guid,
+							Name = name,
+						});
+					};
 					return new TextureHandleResponse() { TextureHandle = inlay.SharedTextureHandle };
 				}
 
@@ -132,7 +140,7 @@ namespace BrowserHost.Renderer
 					return null;
 				}
 
-				case EventInlayRequest eventInlayRequest:
+				case DownstreamEventInlayRequest eventInlayRequest:
 				{
 					var inlay = inlays[eventInlayRequest.Guid];
 					inlay.Send(eventInlayRequest.Name, eventInlayRequest.Data);

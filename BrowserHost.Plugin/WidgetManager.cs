@@ -47,12 +47,20 @@ namespace BrowserHost.Plugin
 			switch (request)
 			{
 				case SetCursorRequest setCursorRequest:
-					{
-						BrowserWidget widget = null;
-						widgets[setCursorRequest.Guid]?.TryGetTarget(out widget);
-						if (widget != null) { widget.SetCursor(setCursorRequest.Cursor); }
-						return null;
-					}
+				{
+					BrowserWidget widget = null;
+					widgets[setCursorRequest.Guid]?.TryGetTarget(out widget);
+					if (widget != null) { widget.SetCursor(setCursorRequest.Cursor); }
+					return null;
+				}
+
+				case UpstreamEventRequest upstreamEventRequest:
+				{
+					BrowserWidget widget = null;
+					widgets[upstreamEventRequest.Guid]?.TryGetTarget(out widget);
+					if (widget != null) { widget.Receive(upstreamEventRequest.Name); }
+					return null;
+				}
 
 				default:
 					throw new Exception($"Unknown IPC request type {request.GetType().Name} received.");

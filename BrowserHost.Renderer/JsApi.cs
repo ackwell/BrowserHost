@@ -6,6 +6,8 @@ namespace BrowserHost.Renderer
 {
 	class JsApi : IDisposable
 	{
+		public event EventHandler<string> EventDispatched;
+
 		private Dictionary<string, List<IJavascriptCallback>> callbacks = new Dictionary<string, List<IJavascriptCallback>>();
 
 		public void Dispose()
@@ -26,7 +28,7 @@ namespace BrowserHost.Renderer
 			eventCallbacks.ForEach(callback => callback.ExecuteAsync(data));
 		}
 
-		public void On(string name, IJavascriptCallback callback)
+		public void AddEventListener(string name, IJavascriptCallback callback)
 		{
 			var found = callbacks.TryGetValue(name, out List<IJavascriptCallback> eventCallbacks);
 			if (!found)
@@ -36,6 +38,12 @@ namespace BrowserHost.Renderer
 			}
 
 			eventCallbacks.Add(callback);
+		}
+
+		// TODO: Data stuff
+		public void DispatchEvent(string name)
+		{
+			EventDispatched?.Invoke(this, name);
 		}
 	}
 }

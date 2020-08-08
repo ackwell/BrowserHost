@@ -17,6 +17,8 @@ namespace BrowserHost.Renderer
 			remove { renderHandler.CursorChanged -= value; }
 		}
 
+		public event EventHandler<string> EventDispatched;
+
 		private string url;
 		private Size size;
 
@@ -61,7 +63,11 @@ namespace BrowserHost.Renderer
 			{
 				if (args.ObjectName != "hostApi") { return; }
 
-				if (jsApi == null) { jsApi = new JsApi(); }
+				if (jsApi == null)
+				{
+					jsApi = new JsApi();
+					jsApi.EventDispatched += (sender, args) => EventDispatched?.Invoke(sender, args);
+				}
 				args.ObjectRepository.Register(args.ObjectName, jsApi, isAsync: true);
 			};
 

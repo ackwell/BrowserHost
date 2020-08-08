@@ -64,7 +64,7 @@ namespace BrowserHost.Common
 	}
 
 	[Serializable]
-	public class EventInlayRequest : DownstreamIpcRequest
+	public class DownstreamEventInlayRequest : DownstreamIpcRequest
 	{
 		public Guid Guid;
 		public string Name;
@@ -190,6 +190,13 @@ namespace BrowserHost.Common
 	{
 		public Guid Guid;
 		public Cursor Cursor;
+	}
+
+	[Serializable]
+	public class UpstreamEventRequest : UpstreamIpcRequest
+	{
+		public Guid Guid;
+		public string Name;
 	}
 
 	#endregion

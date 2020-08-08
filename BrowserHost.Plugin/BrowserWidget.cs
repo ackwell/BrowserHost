@@ -14,6 +14,9 @@ namespace BrowserHost.Plugin
 	{
 		public Guid Guid { get; } = Guid.NewGuid();
 
+		// TODO: Should probably use a struct for the arg so we can make non-breaking additions.
+		public event EventHandler<string> Received;
+
 		private Vector2 size;
 		private string url;
 
@@ -69,12 +72,17 @@ namespace BrowserHost.Plugin
 			}
 
 			// Send down the wire
-			RenderProcess.Send(new EventInlayRequest()
+			RenderProcess.Send(new DownstreamEventInlayRequest()
 			{
 				Guid = Guid,
 				Name = $"{callingAssembly.GetName().Name}:{name}",
 				Data = data,
 			});
+		}
+
+		internal void Receive(string name)
+		{
+			Received?.Invoke(this, name);
 		}
 
 		internal void SetCursor(Cursor cursor)
