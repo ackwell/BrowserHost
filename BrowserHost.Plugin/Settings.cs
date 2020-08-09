@@ -1,4 +1,5 @@
-﻿using Dalamud.Game.Command;
+﻿using BrowserHost.Common;
+using Dalamud.Game.Command;
 using Dalamud.Interface;
 using Dalamud.Plugin;
 using ImGuiNET;
@@ -16,9 +17,9 @@ namespace BrowserHost.Plugin
 		public event EventHandler<InlayConfiguration> InlayDebugged;
 		public event EventHandler<InlayConfiguration> InlayRemoved;
 
-		private DalamudPluginInterface pluginInterface;
+		public Configuration Config;
 
-		private Configuration config;
+		private DalamudPluginInterface pluginInterface;
 
 #if DEBUG
 		private bool open = true;
@@ -46,10 +47,10 @@ namespace BrowserHost.Plugin
 			// Running this in a thread to avoid blocking the plugin init with potentially expensive stuff
 			Task.Run(() =>
 			{
-				config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+				Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
 				// Hydrate any inlays in the config
-				foreach (var inlayConfig in config.Inlays)
+				foreach (var inlayConfig in Config.Inlays)
 				{
 					InlayAdded?.Invoke(this, inlayConfig);
 				}
@@ -66,7 +67,7 @@ namespace BrowserHost.Plugin
 				Name = "New inlay",
 				Url = "about:blank",
 			};
-			config.Inlays.Add(inlayConfig);
+			Config.Inlays.Add(inlayConfig);
 			InlayAdded?.Invoke(this, inlayConfig);
 			SaveSettings();
 
@@ -89,7 +90,7 @@ namespace BrowserHost.Plugin
 		private void RemoveInlay(InlayConfiguration inlayConfig)
 		{
 			InlayRemoved?.Invoke(this, inlayConfig);
-			config.Inlays.Remove(inlayConfig);
+			Config.Inlays.Remove(inlayConfig);
 			SaveSettings();
 		}
 
@@ -103,12 +104,12 @@ namespace BrowserHost.Plugin
 		{
 			saveDebounceTimer?.Dispose();
 			saveDebounceTimer = null;
-			pluginInterface.SavePluginConfig(config);
+			pluginInterface.SavePluginConfig(Config);
 		}
 
 		public void Render()
 		{
-			if (!open || config == null) { return; }
+			if (!open || Config == null) { return; }
 
 			// Primary window container
 			ImGui.SetNextWindowSizeConstraints(new Vector2(400, 300), new Vector2(9001, 9001));
@@ -126,7 +127,7 @@ namespace BrowserHost.Plugin
 			ImGui.BeginChild("details");
 			if (selectedInlay == null)
 			{
-				ImGui.Text("Select an inlay on the left to edit its settings.");
+				dirty |= RenderGeneralSettings();
 			}
 			else
 			{
@@ -145,10 +146,21 @@ namespace BrowserHost.Plugin
 			ImGui.BeginGroup();
 			ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, 0));
 
+			var selectorWidth = 100;
+			ImGui.BeginChild("panes", new Vector2(selectorWidth, -ImGui.GetFrameHeightWithSpacing()), true);
+
+			// General settings
+			if (ImGui.Selectable($"General", selectedInlay == null))
+			{
+				selectedInlay = null;
+			}
+
 			// Inlay selector list
-			ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
-			ImGui.BeginChild("inlays", new Vector2(100, -ImGui.GetFrameHeightWithSpacing()), true);
-			foreach (var inlayConfig in config.Inlays)
+			ImGui.Dummy(new Vector2(0, 5));
+			ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
+			ImGui.Text("- Inlays -");
+			ImGui.PopStyleVar();
+			foreach (var inlayConfig in Config.Inlays)
 			{
 				if (ImGui.Selectable($"{inlayConfig.Name}##{inlayConfig.Guid}", selectedInlay == inlayConfig))
 				{
@@ -156,13 +168,13 @@ namespace BrowserHost.Plugin
 				}
 			}
 			ImGui.EndChild();
-			ImGui.PopStyleVar();
 
 			// Selector controls
 			ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 0);
 			ImGui.PushFont(UiBuilder.IconFont);
 
-			if (ImGui.Button(FontAwesomeIcon.Plus.ToIconString(), new Vector2(50, 0)))
+			var buttonWidth = selectorWidth / 2;
+			if (ImGui.Button(FontAwesomeIcon.Plus.ToIconString(), new Vector2(buttonWidth, 0)))
 			{
 				selectedInlay = AddNewInlay();
 			}
@@ -170,7 +182,7 @@ namespace BrowserHost.Plugin
 			ImGui.SameLine();
 			if (selectedInlay != null)
 			{
-				if (ImGui.Button(FontAwesomeIcon.Trash.ToIconString(), new Vector2(50, 0)))
+				if (ImGui.Button(FontAwesomeIcon.Trash.ToIconString(), new Vector2(buttonWidth, 0)))
 				{
 					var toRemove = selectedInlay;
 					selectedInlay = null;
@@ -180,7 +192,7 @@ namespace BrowserHost.Plugin
 			else
 			{
 				ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
-				ImGui.Button(FontAwesomeIcon.Trash.ToIconString(), new Vector2(50, 0));
+				ImGui.Button(FontAwesomeIcon.Trash.ToIconString(), new Vector2(buttonWidth, 0));
 				ImGui.PopStyleVar();
 			}
 
@@ -188,6 +200,22 @@ namespace BrowserHost.Plugin
 			ImGui.PopStyleVar(2);
 
 			ImGui.EndGroup();
+		}
+
+		private bool RenderGeneralSettings()
+		{
+			var dirty = false;
+
+			ImGui.Text("Select an inlay on the left to edit its settings.");
+
+			// TODO: Flipping this should probably try to rebuild existing inlays
+			var altFrameTransport = Config.FrameTransportMode == FrameTransportMode.BitmapBuffer;
+			dirty |= ImGui.Checkbox("Use alternate frame transport", ref altFrameTransport);
+			Config.FrameTransportMode = altFrameTransport
+				? FrameTransportMode.BitmapBuffer
+				: FrameTransportMode.SharedTexture;
+
+			return dirty;
 		}
 
 		private bool RenderInlaySettings(InlayConfiguration inlayConfig)

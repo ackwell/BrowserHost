@@ -70,10 +70,10 @@ namespace BrowserHost.Plugin
 			return responses.FirstOrDefault(pair => pair.Item1);
 		}
 
-		private void OnInlayAdded(object sender, InlayConfiguration config)
+		private void OnInlayAdded(object sender, InlayConfiguration inlayConfig)
 		{
-			var inlay = new Inlay(renderProcess, config);
-			inlays.Add(inlay.Config.Guid, inlay);
+			var inlay = new Inlay(renderProcess, settings.Config, inlayConfig);
+			inlays.Add(inlayConfig.Guid, inlay);
 		}
 
 		private void OnInlayNavigated(object sender, InlayConfiguration config)

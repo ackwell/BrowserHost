@@ -1,8 +1,6 @@
 ﻿using BrowserHost.Common;
+using BrowserHost.Plugin.TextureHandlers;
 using ImGuiNET;
-using ImGuiScene;
-using D3D = SharpDX.Direct3D;
-using D3D11 = SharpDX.Direct3D11;
 using System;
 using System.Numerics;
 
@@ -10,12 +8,13 @@ namespace BrowserHost.Plugin
 {
 	class Inlay : IDisposable
 	{
-		public InlayConfiguration Config;
+		private Configuration config;
+		private InlayConfiguration inlayConfig;
 
 		private Vector2 size;
 
 		private RenderProcess renderProcess;
-		private TextureWrap textureWrap;
+		private ITextureHandler textureHandler;
 		private Exception textureRenderException;
 
 		private bool mouseInWindow;
@@ -23,26 +22,27 @@ namespace BrowserHost.Plugin
 		private InputModifier modifier;
 		private ImGuiMouseCursor cursor;
 
-		public Inlay(RenderProcess renderProcess, InlayConfiguration config)
+		public Inlay(RenderProcess renderProcess, Configuration config, InlayConfiguration inlayConfig)
 		{
 			this.renderProcess = renderProcess;
-			Config = config;
+			this.config = config;
+			this.inlayConfig = inlayConfig;
 		}
 
 		public void Dispose()
 		{
-			textureWrap?.Dispose();
-			renderProcess.Send(new RemoveInlayRequest() { Guid = Config.Guid });
+			textureHandler?.Dispose();
+			renderProcess.Send(new RemoveInlayRequest() { Guid = inlayConfig.Guid });
 		}
 
 		public void Navigate(string newUrl)
 		{
-			renderProcess.Send(new NavigateInlayRequest() { Guid = Config.Guid, Url = newUrl });
+			renderProcess.Send(new NavigateInlayRequest() { Guid = inlayConfig.Guid, Url = newUrl });
 		}
 
 		public void Debug()
 		{
-			renderProcess.Send(new DebugInlayRequest() { Guid = Config.Guid });
+			renderProcess.Send(new DebugInlayRequest() { Guid = inlayConfig.Guid });
 		}
 
 		public void SetCursor(Cursor cursor)
@@ -93,7 +93,7 @@ namespace BrowserHost.Plugin
 
 			renderProcess.Send(new KeyEventRequest()
 			{
-				Guid = Config.Guid,
+				Guid = inlayConfig.Guid,
 				Type = eventType.Value,
 				SystemKey = isSystemKey,
 				UserKeyCode = (int)wParam,
@@ -108,16 +108,16 @@ namespace BrowserHost.Plugin
 		public void Render()
 		{
 			ImGui.SetNextWindowSize(new Vector2(640, 480), ImGuiCond.FirstUseEver);
-			ImGui.Begin($"{Config.Name}###{Config.Guid}", GetWindowFlags());
+			ImGui.Begin($"{inlayConfig.Name}###{inlayConfig.Guid}", GetWindowFlags());
 
 			HandleWindowSize();
 
 			// TODO: Renderer can take some time to spin up properly, should add a loading state.
-			if (textureWrap != null)
+			if (textureHandler != null)
 			{
 				HandleMouseEvent();
 
-				ImGui.Image(textureWrap.ImGuiHandle, new Vector2(textureWrap.Width, textureWrap.Height));
+				textureHandler.Render();
 			}
 			else if (textureRenderException != null)
 			{
@@ -139,14 +139,14 @@ namespace BrowserHost.Plugin
 				| ImGuiWindowFlags.NoBringToFrontOnFocus
 				| ImGuiWindowFlags.NoFocusOnAppearing;
 
-			if (Config.Locked || Config.ClickThrough)
+			if (inlayConfig.Locked || inlayConfig.ClickThrough)
 			{
 				flags |= ImGuiWindowFlags.None
 					| ImGuiWindowFlags.NoMove
 					| ImGuiWindowFlags.NoResize
 					| ImGuiWindowFlags.NoBackground;
 			}
-			if (Config.ClickThrough) { flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav; }
+			if (inlayConfig.ClickThrough) { flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav; }
 
 			return flags;
 		}
@@ -155,7 +155,7 @@ namespace BrowserHost.Plugin
 		{
 			// Render proc won't be ready on first boot
 			// Totally skip mouse handling for click through inlays, as well
-			if (renderProcess == null || Config.ClickThrough) { return; }
+			if (renderProcess == null || inlayConfig.ClickThrough) { return; }
 
 			var io = ImGui.GetIO();
 			var mousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
@@ -168,7 +168,7 @@ namespace BrowserHost.Plugin
 					mouseInWindow = false;
 					renderProcess.Send(new MouseEventRequest()
 					{
-						Guid = Config.Guid,
+						Guid = inlayConfig.Guid,
 						X = mousePos.X,
 						Y = mousePos.Y,
 						Leaving = true,
@@ -200,7 +200,7 @@ namespace BrowserHost.Plugin
 			// TODO: Either this or the entire handler function should be asynchronous so we're not blocking the entire draw thread
 			renderProcess.Send(new MouseEventRequest()
 			{
-				Guid = Config.Guid,
+				Guid = inlayConfig.Guid,
 				X = mousePos.X,
 				Y = mousePos.Y,
 				Down = down,
@@ -223,39 +223,35 @@ namespace BrowserHost.Plugin
 			var request = size == Vector2.Zero
 				? new NewInlayRequest()
 				{
-					Guid = Config.Guid,
-					Url = Config.Url,
+					Guid = inlayConfig.Guid,
+					FrameTransportMode = config.FrameTransportMode,
+					Url = inlayConfig.Url,
 					Width = (int)currentSize.X,
 					Height = (int)currentSize.Y,
 				}
 				: new ResizeInlayRequest()
 				{
-					Guid = Config.Guid,
+					Guid = inlayConfig.Guid,
 					Width = (int)currentSize.X,
 					Height = (int)currentSize.Y,
 				} as DownstreamIpcRequest;
 
-			var response = renderProcess.Send<TextureHandleResponse>(request);
+			var response = renderProcess.Send<FrameTransportResponse>(request);
 
-			var oldTextureWrap = textureWrap;
-			try { textureWrap = BuildTextureWrap(response.TextureHandle); }
+			var oldTextureHandler = textureHandler;
+			try
+			{
+				textureHandler = response switch
+				{
+					TextureHandleResponse textureHandleResponse => new SharedTextureHandler(textureHandleResponse.TextureHandle),
+					BitmapBufferResponse bitmapBufferResponse => new BitmapBufferTextureHandler(),
+					_ => throw new Exception($"Unhandled frame transport {response.GetType().Name}"),
+				};
+			}
 			catch (Exception e) { textureRenderException = e; }
-			if (oldTextureWrap != null) { oldTextureWrap.Dispose(); }
+			if (oldTextureHandler != null) { oldTextureHandler.Dispose(); }
 
 			size = currentSize;
-		}
-
-		private TextureWrap BuildTextureWrap(IntPtr textureHandle)
-		{
-			var texture = DxHandler.Device.OpenSharedResource<D3D11.Texture2D>(textureHandle);
-			var view = new D3D11.ShaderResourceView(DxHandler.Device, texture, new D3D11.ShaderResourceViewDescription()
-			{
-				Format = texture.Description.Format,
-				Dimension = D3D.ShaderResourceViewDimension.Texture2D,
-				Texture2D = { MipLevels = texture.Description.MipLevels },
-			});
-
-			return new D3DTextureWrap(view, texture.Description.Width, texture.Description.Height);
 		}
 
 		#region serde

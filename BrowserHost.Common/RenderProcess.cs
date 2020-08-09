@@ -28,9 +28,16 @@ namespace BrowserHost.Common
 	[Serializable]
 	public class DownstreamIpcRequest { }
 
+	public enum FrameTransportMode
+	{
+		SharedTexture,
+		BitmapBuffer,
+	}
+
 	[Serializable]
 	public class NewInlayRequest : DownstreamIpcRequest {
 		public Guid Guid;
+		public FrameTransportMode FrameTransportMode;
 		public string Url;
 		public int Width;
 		public int Height;
@@ -45,9 +52,18 @@ namespace BrowserHost.Common
 	}
 
 	[Serializable]
-	public class TextureHandleResponse
+	public class FrameTransportResponse { }
+
+	[Serializable]
+	public class TextureHandleResponse : FrameTransportResponse
 	{
 		public IntPtr TextureHandle;
+	}
+
+	[Serializable]
+	public class BitmapBufferResponse : FrameTransportResponse
+	{
+
 	}
 
 	[Serializable]

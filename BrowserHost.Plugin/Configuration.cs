@@ -1,4 +1,5 @@
-﻿using Dalamud.Configuration;
+﻿using BrowserHost.Common;
+using Dalamud.Configuration;
 using System;
 using System.Collections.Generic;
 
@@ -9,6 +10,7 @@ namespace BrowserHost.Plugin
 	{
 		public int Version { get; set; } = 0;
 
+		public FrameTransportMode FrameTransportMode = FrameTransportMode.SharedTexture;
 		public List<InlayConfiguration> Inlays = new List<InlayConfiguration>();
 	}
 
