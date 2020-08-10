@@ -142,10 +142,11 @@ namespace BrowserHost.Renderer
 
 		private static object OnNewInlayRequest(NewInlayRequest request)
 		{
+			var size = new Size(request.Width, request.Height);
 			BaseRenderHandler renderHandler = request.FrameTransportMode switch
 			{
-				FrameTransportMode.SharedTexture => new TextureRenderHandler(new Size(request.Width, request.Height)),
-				FrameTransportMode.BitmapBuffer => new BitmapBufferRenderHandler(),
+				FrameTransportMode.SharedTexture => new TextureRenderHandler(size),
+				FrameTransportMode.BitmapBuffer => new BitmapBufferRenderHandler(size),
 				_ => throw new Exception($"Unhandled frame transport mode {request.FrameTransportMode}"),
 			};
 
@@ -170,7 +171,7 @@ namespace BrowserHost.Renderer
 			return renderHandler switch
 			{
 				TextureRenderHandler textureRenderHandler => new TextureHandleResponse() { TextureHandle = textureRenderHandler.SharedTextureHandle },
-				BitmapBufferRenderHandler bitmapBufferRenderHandler => new BitmapBufferResponse(),
+				BitmapBufferRenderHandler bitmapBufferRenderHandler => new BitmapBufferResponse() { BufferName = bitmapBufferRenderHandler.BufferName },
 				_ => throw new Exception($"Unhandled render handler type {renderHandler.GetType().Name}")
 			};
 		}

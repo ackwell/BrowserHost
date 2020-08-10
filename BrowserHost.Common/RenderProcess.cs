@@ -2,6 +2,8 @@
 
 namespace BrowserHost.Common
 {
+	// TODO: I should probably split this file up it's getting a bit silly
+
 	public class RenderProcessArguments
 	{
 		public int ParentPid;
@@ -21,6 +23,16 @@ namespace BrowserHost.Common
 		{
 			return TinyJson.JSONParser.FromJson<RenderProcessArguments>(serialisedArgs);
 		}
+	}
+
+	// TODO: Perhaps look into seperate buffers for bitmap data and frame info?
+	public struct BitmapFrame
+	{
+		public int Width;
+		public int Height;
+
+		// Length of the incoming data in next node
+		public int Length;
 	}
 
 	#region Downstream IPC
@@ -63,7 +75,7 @@ namespace BrowserHost.Common
 	[Serializable]
 	public class BitmapBufferResponse : FrameTransportResponse
 	{
-
+		public string BufferName;
 	}
 
 	[Serializable]
