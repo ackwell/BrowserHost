@@ -4,6 +4,7 @@ using D3D11 = SharpDX.Direct3D11;
 using System;
 using System.Numerics;
 using ImGuiNET;
+using BrowserHost.Common;
 
 namespace BrowserHost.Plugin.TextureHandlers
 {
@@ -11,9 +12,9 @@ namespace BrowserHost.Plugin.TextureHandlers
 	{
 		private TextureWrap textureWrap;
 
-		public SharedTextureHandler(IntPtr textureHandle)
+		public SharedTextureHandler(TextureHandleResponse response)
 		{
-			var texture = DxHandler.Device.OpenSharedResource<D3D11.Texture2D>(textureHandle);
+			var texture = DxHandler.Device.OpenSharedResource<D3D11.Texture2D>(response.TextureHandle);
 			var view = new D3D11.ShaderResourceView(DxHandler.Device, texture, new D3D11.ShaderResourceViewDescription()
 			{
 				Format = texture.Description.Format,

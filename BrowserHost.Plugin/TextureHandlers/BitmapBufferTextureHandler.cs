@@ -5,9 +5,9 @@ using SharedMemory;
 using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
 using DXGI = SharpDX.DXGI;
-using System;
 using System.Numerics;
 using System.Threading;
+using System.Collections.Concurrent;
 
 namespace BrowserHost.Plugin.TextureHandlers
 {
@@ -17,10 +17,15 @@ namespace BrowserHost.Plugin.TextureHandlers
 		private D3D11.Texture2D texture;
 		private TextureWrap textureWrap;
 
-		public BitmapBufferTextureHandler(string bufferName)
+		private BufferReadWrite bitmapBuffer;
+		private ConcurrentQueue<BitmapFrame> frameQueue = new ConcurrentQueue<BitmapFrame>();
+
+		public BitmapBufferTextureHandler(BitmapBufferResponse response)
 		{
 			frameBufferThread = new Thread(FrameBufferThread);
-			frameBufferThread.Start(bufferName);
+			frameBufferThread.Start(response.FrameInfoBufferName);
+
+			bitmapBuffer = new BufferReadWrite(response.BitmapBufferName);
 		}
 
 		public void Dispose()
@@ -31,47 +36,46 @@ namespace BrowserHost.Plugin.TextureHandlers
 
 		public void Render()
 		{
+			// Render incoming frame info on the queue
+			// TODO: Should snapshot before looping, this has an edge case of never completing if game is slow and renderer is fast
+			while (frameQueue.TryDequeue(out BitmapFrame frame))
+			{
+				RenderFrame(frame);
+			}
+
 			if (textureWrap == null) { return; }
 
 			ImGui.Image(textureWrap.ImGuiHandle, new Vector2(textureWrap.Width, textureWrap.Height));
 		}
 
-		private void FrameBufferThread(object bufferName)
+		private void RenderFrame(BitmapFrame frame)
 		{
-			var buffer = new CircularBuffer(bufferName as string);
-			while (true)
+			// If the frame size has changed, build a new dx texture to render to.
+			// TODO: There's no guarantee that we're reading from the bitmap buffer in sync with the info due to Fun With Threads.
+			//       Work out how resizing will work to prevent reading new-size buffer into old-size texture. New bitmap mmap?
+			if (
+				texture == null ||
+				texture.Description.Width != frame.Width ||
+				texture.Description.Height != frame.Height
+			)
 			{
-				buffer.Read(out BitmapFrame frame, timeout: Timeout.Infinite);
-				// this is possibly thrashing memory more than i'd like? read -> byte[] -> copy ptr
-				var data = new byte[frame.Length];
-				buffer.Read(data, timeout: Timeout.Infinite);
-
-				// Make sure we have an up-to-date texture to write to
-				if (
-					texture == null ||
-					texture.Description.Width != frame.Width ||
-					texture.Description.Height != frame.Height
-				) {
-					BuildTexture(frame.Width, frame.Height);
-				}
-
-				// Do the writing
-				var rowPitch = frame.Length / frame.Height;
-				var depthPitch = frame.Length;
-
-				var context = DxHandler.Device.ImmediateContext;
-				unsafe
-				{
-					fixed (byte* dataPtr = data)
-					{
-						context.UpdateSubresource(texture, 0, null, (IntPtr)dataPtr, rowPitch, depthPitch);
-					}
-				}
+				BuildTexture(frame.Width, frame.Height);
 			}
+
+			// Write data from the buffer
+			var rowPitch = frame.Length / frame.Height;
+			var depthPitch = frame.Length;
+
+			var context = DxHandler.Device.ImmediateContext;
+			bitmapBuffer.Read(ptr =>
+			{
+				context.UpdateSubresource(texture, 0, null, ptr, rowPitch, depthPitch);
+			});
 		}
 
 		private void BuildTexture(int width, int height)
 		{
+			// TODO: This should probably be a dynamic texture, with updates performed via mapping. Work it out.
 			texture = new D3D11.Texture2D(DxHandler.Device, new D3D11.Texture2DDescription()
 			{
 				Width = width,
@@ -80,9 +84,11 @@ namespace BrowserHost.Plugin.TextureHandlers
 				ArraySize = 1,
 				Format = DXGI.Format.B8G8R8A8_UNorm,
 				SampleDescription = new DXGI.SampleDescription(1, 0),
-				Usage = D3D11.ResourceUsage.Default, // dynamic
+				Usage = D3D11.ResourceUsage.Default,
+				//Usage = D3D11.ResourceUsage.Dynamic,
 				BindFlags = D3D11.BindFlags.ShaderResource,
-				CpuAccessFlags = D3D11.CpuAccessFlags.None, // write
+				CpuAccessFlags = D3D11.CpuAccessFlags.None,
+				//CpuAccessFlags = D3D11.CpuAccessFlags.Write,
 				OptionFlags = D3D11.ResourceOptionFlags.None,
 			});
 
@@ -94,6 +100,19 @@ namespace BrowserHost.Plugin.TextureHandlers
 			});
 
 			textureWrap = new D3DTextureWrap(view, texture.Description.Width, texture.Description.Height);
+		}
+
+		private void FrameBufferThread(object bufferName)
+		{
+			// Open up a reference to the frame info buffer
+			using var frameInfoBuffer = new CircularBuffer((string)bufferName);
+
+			// We're just looping the blocking read operation forever. Parent will abort the to shut down.
+			while (true)
+			{
+				frameInfoBuffer.Read(out BitmapFrame frame, timeout: Timeout.Infinite);
+				frameQueue.Enqueue(frame);
+			}
 		}
 	}
 }

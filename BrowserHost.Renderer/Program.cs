@@ -171,7 +171,11 @@ namespace BrowserHost.Renderer
 			return renderHandler switch
 			{
 				TextureRenderHandler textureRenderHandler => new TextureHandleResponse() { TextureHandle = textureRenderHandler.SharedTextureHandle },
-				BitmapBufferRenderHandler bitmapBufferRenderHandler => new BitmapBufferResponse() { BufferName = bitmapBufferRenderHandler.BufferName },
+				BitmapBufferRenderHandler bitmapBufferRenderHandler => new BitmapBufferResponse()
+				{
+					BitmapBufferName = bitmapBufferRenderHandler.BitmapBufferName,
+					FrameInfoBufferName = bitmapBufferRenderHandler.FrameInfoBufferName,
+				},
 				_ => throw new Exception($"Unhandled render handler type {renderHandler.GetType().Name}")
 			};
 		}

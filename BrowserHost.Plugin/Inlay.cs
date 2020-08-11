@@ -243,8 +243,8 @@ namespace BrowserHost.Plugin
 			{
 				textureHandler = response switch
 				{
-					TextureHandleResponse textureHandleResponse => new SharedTextureHandler(textureHandleResponse.TextureHandle),
-					BitmapBufferResponse bitmapBufferResponse => new BitmapBufferTextureHandler(bitmapBufferResponse.BufferName),
+					TextureHandleResponse textureHandleResponse => new SharedTextureHandler(textureHandleResponse),
+					BitmapBufferResponse bitmapBufferResponse => new BitmapBufferTextureHandler(bitmapBufferResponse),
 					_ => throw new Exception($"Unhandled frame transport {response.GetType().Name}"),
 				};
 			}

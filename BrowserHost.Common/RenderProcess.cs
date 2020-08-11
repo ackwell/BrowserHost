@@ -75,7 +75,8 @@ namespace BrowserHost.Common
 	[Serializable]
 	public class BitmapBufferResponse : FrameTransportResponse
 	{
-		public string BufferName;
+		public string BitmapBufferName;
+		public string FrameInfoBufferName;
 	}
 
 	[Serializable]

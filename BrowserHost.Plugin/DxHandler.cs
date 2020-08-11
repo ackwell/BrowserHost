@@ -22,6 +22,7 @@ namespace BrowserHost.Plugin
 
 			var sceneType = scene.GetType();
 			Device = (D3D11.Device)sceneType.GetField("device", bindingFlags).GetValue(scene);
+			//Device = new D3D11.Device(SharpDX.Direct3D.DriverType.Hardware, D3D11.DeviceCreationFlags.BgraSupport | D3D11.DeviceCreationFlags.Debug);
 
 			// Grab the window handle, we'll use this for setting up our wndproc hook
 			var SwapChain = (DXGI.SwapChain)sceneType.GetField("swapChain", bindingFlags).GetValue(scene);

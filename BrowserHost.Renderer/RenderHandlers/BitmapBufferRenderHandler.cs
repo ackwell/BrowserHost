@@ -10,23 +10,29 @@ namespace BrowserHost.Renderer.RenderHandlers
 	{
 		// CEF buffers are 32-bit BGRA
 		private const byte bytesPerPixel = 4;
-		public string BufferName { get { return bitmapBuffer.Name; } }
 
-		private CircularBuffer bitmapBuffer;
+		public string BitmapBufferName { get { return bitmapBuffer.Name; } }
+		public string FrameInfoBufferName { get { return frameInfoBuffer.Name; } }
+
+		private BufferReadWrite bitmapBuffer;
+		private CircularBuffer frameInfoBuffer;
 		private System.Drawing.Size size;
 
 		public BitmapBufferRenderHandler(System.Drawing.Size size)
 		{
 			this.size = size;
 
+			var bitmapBufferName = $"BrowserHostBitmapBuffer{Guid.NewGuid()}";
+			bitmapBuffer = new BufferReadWrite(bitmapBufferName, size.Width * size.Height * bytesPerPixel);
+
 			// TODO: Sane size. Do we want to realloc buffers every resize or stone one or...?
-			var name = $"BrowserHostBitmapBuffer{Guid.NewGuid()}";
-			bitmapBuffer = new CircularBuffer(name, 5, 1024 * 1024 * 10 /* 10M */);
+			var frameInfoBuffername = $"BrowserHostFrameInfoBuffer{Guid.NewGuid()}";
+			frameInfoBuffer = new CircularBuffer(frameInfoBuffername, 5, 1024 /* 1K */);
 		}
 
 		public override void Dispose()
 		{
-			bitmapBuffer.Dispose();
+			frameInfoBuffer.Dispose();
 		}
 
 		public override void Resize(System.Drawing.Size size)
@@ -45,7 +51,6 @@ namespace BrowserHost.Renderer.RenderHandlers
 			if (type != PaintElementType.View) { return; }
 
 			// TODO: Only write dirty rect
-			// TODO: Seperate buffers for frame info and buffer data?
 			var length = bytesPerPixel * width * height;
 			var frame = new BitmapFrame()
 			{
@@ -54,8 +59,9 @@ namespace BrowserHost.Renderer.RenderHandlers
 				Length = length,
 			};
 
-			bitmapBuffer.Write(ref frame);
+			// Not using read/write locks because I'm a cowboy (and there seems to be a race cond in the locking mechanism)
 			bitmapBuffer.Write(buffer, length);
+			frameInfoBuffer.Write(ref frame);
 		}
 
 		public override void OnPopupShow(bool show)
