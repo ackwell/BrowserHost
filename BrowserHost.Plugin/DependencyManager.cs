@@ -150,6 +150,7 @@ namespace BrowserHost.Plugin
 
 			var windowFlags = ImGuiWindowFlags.AlwaysAutoResize;
 			ImGui.Begin("BrowserHost dependencies", windowFlags);
+			ImGui.SetWindowFocus();
 
 			switch (viewMode)
 			{
