@@ -7,6 +7,8 @@ using D3D11 = SharpDX.Direct3D11;
 using DXGI = SharpDX.DXGI;
 using System;
 using System.Collections.Concurrent;
+using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 
 namespace BrowserHost.Renderer
 {
@@ -39,6 +41,12 @@ namespace BrowserHost.Renderer
 
 		public event EventHandler<Cursor> CursorChanged;
 
+		// Transparent background click-through state
+		private IntPtr bufferPtr;
+		private int bufferWidth;
+		private int bufferHeight;
+		private bool cursorOnBackground;
+
 		public TextureRenderHandler(System.Drawing.Size size)
 		{
 			texture = BuildViewTexture(size);
@@ -59,6 +67,34 @@ namespace BrowserHost.Renderer
 			// Need to clear the cached handle value
 			// TODO: Maybe I should just avoid the lazy cache and do it eagerly on texture build.
 			sharedTextureHandle = IntPtr.Zero;
+		}
+
+		// Nasty shit needs nasty attributes.
+		[HandleProcessCorruptedStateExceptions]
+		public void SetMousePosition(int x, int y)
+		{
+			var rowPitch = bufferWidth * bytesPerPixel;
+
+			// Get the offset for the alpha of the cursor's current position. Bitmap buffer is BGRA, so +3 to get alpha byte
+			var cursorAlphaOffset = 0
+				 + (Math.Min(Math.Max(x, 0), bufferWidth - 1) * bytesPerPixel)
+				 + (Math.Min(Math.Max(y, 0), bufferHeight - 1) * rowPitch)
+				 + 3;
+
+			byte alpha;
+			try { alpha = Marshal.ReadByte(bufferPtr + cursorAlphaOffset); }
+			catch
+			{
+				Console.Error.WriteLine("Failed to read alpha value from cef buffer.");
+				return;
+			}
+
+			var currentlyOnBackground = alpha == 0;
+			if (currentlyOnBackground != cursorOnBackground)
+			{
+				Console.WriteLine($"CURSOR ON BG: {currentlyOnBackground}");
+				cursorOnBackground = currentlyOnBackground;
+			}
 		}
 
 		private D3D11.Texture2D BuildViewTexture(System.Drawing.Size size)
@@ -118,14 +154,25 @@ namespace BrowserHost.Renderer
 		{
 			var targetTexture = type switch
 			{
+				PaintElementType.View => texture,
 				PaintElementType.Popup => popupTexture,
-				_ => texture,
+				_ => throw new Exception($"Unknown paint type {type}"),
 			};
 
-			var texDesc = targetTexture.Description;
+			// Nasty hack; we're keeping a ref to the view buffer for pixel lookups without going through DX
+			if (type == PaintElementType.View)
+			{
+				bufferPtr = buffer;
+				bufferWidth = width;
+				bufferHeight = height;
+			}
 
+			// Calculate offset multipliers for the current buffer
 			var rowPitch = width * bytesPerPixel;
 			var depthPitch = rowPitch * height;
+
+			// Build the destination region for the dirty rect that we'll draw to
+			var texDesc = targetTexture.Description;
 			var sourceRegionPtr = buffer + (dirtyRect.X * bytesPerPixel) + (dirtyRect.Y * rowPitch);
 			var destinationRegion = new D3D11.ResourceRegion()
 			{
@@ -137,6 +184,7 @@ namespace BrowserHost.Renderer
 				Back = 1,
 			};
 
+			// Draw to the target
 			var context = targetTexture.Device.ImmediateContext;
 			context.UpdateSubresource(targetTexture, 0, destinationRegion, sourceRegionPtr, rowPitch, depthPitch);
 

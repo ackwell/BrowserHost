@@ -91,8 +91,13 @@ namespace BrowserHost.Renderer
 			// If the browser isn't ready yet, noop
 			if (browser == null || !browser.IsBrowserInitialized) { return; }
 
-			// TODO: Handle key modifiers
-			var event_ = new MouseEvent((int)request.X, (int)request.Y, DecodeInputModifier(request.Modifier));
+			var cursorX = (int)request.X;
+			var cursorY = (int)request.Y;
+
+			// Update the renderer's concept of the mouse cursor
+			renderHandler.SetMousePosition(cursorX, cursorY);
+
+			var event_ = new MouseEvent(cursorX, cursorY, DecodeInputModifier(request.Modifier));
 
 			var host = browser.GetBrowserHost();
 
