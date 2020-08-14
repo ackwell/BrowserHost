@@ -22,6 +22,7 @@ namespace BrowserHost.Plugin
 		private bool windowFocused;
 		private InputModifier modifier;
 		private ImGuiMouseCursor cursor;
+		private bool captureCursor;
 
 		public Inlay(RenderProcess renderProcess, InlayConfiguration config)
 		{
@@ -47,6 +48,7 @@ namespace BrowserHost.Plugin
 
 		public void SetCursor(Cursor cursor)
 		{
+			captureCursor = cursor != Cursor.BrowserHostNoCapture;
 			this.cursor = DecodeCursor(cursor);
 		}
 
@@ -139,14 +141,21 @@ namespace BrowserHost.Plugin
 				| ImGuiWindowFlags.NoBringToFrontOnFocus
 				| ImGuiWindowFlags.NoFocusOnAppearing;
 
-			if (Config.Locked || Config.ClickThrough)
+			// ClickThrough is implicitly locked
+			var locked = Config.Locked || Config.ClickThrough;
+
+			if (locked)
 			{
 				flags |= ImGuiWindowFlags.None
 					| ImGuiWindowFlags.NoMove
 					| ImGuiWindowFlags.NoResize
 					| ImGuiWindowFlags.NoBackground;
 			}
-			if (Config.ClickThrough) { flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav; }
+
+			if (Config.ClickThrough || (!captureCursor && locked))
+			{
+				flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav;
+			}
 
 			return flags;
 		}
@@ -158,10 +167,20 @@ namespace BrowserHost.Plugin
 			if (renderProcess == null || Config.ClickThrough) { return; }
 
 			var io = ImGui.GetIO();
-			var mousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
+			var windowPos = ImGui.GetWindowPos();
+			var mousePos = io.MousePos - windowPos - ImGui.GetWindowContentRegionMin();
+
+			// Generally we want to use IsWindowHovered for hit checking, as it takes z-stacking into account -
+			// but when cursor isn't being actively captured, imgui will always return false - so fall back
+			// so a slightly more naive hover check, just to maintain a bit of flood prevention.
+			// TODO: Need to test how this will handle overlaps... fully transparent _shouldn't_ be accepting
+			//       clicks so shouuulllddd beee fineee???
+			var hovered = captureCursor
+				? ImGui.IsWindowHovered()
+				: ImGui.IsMouseHoveringRect(windowPos, windowPos + ImGui.GetWindowSize());
 
 			// If the cursor is outside the window, send a final mouse leave then noop
-			if (!ImGui.IsWindowHovered())
+			if (!hovered)
 			{
 				if (mouseInWindow)
 				{

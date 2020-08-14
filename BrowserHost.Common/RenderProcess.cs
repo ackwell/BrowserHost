@@ -168,6 +168,9 @@ namespace BrowserHost.Common
 		NWSEResize,
 		ZoomIn,
 		ZoomOut,
+
+		// Special case value - cursor is on a fully-transparent section of the page, and should not capture
+		BrowserHostNoCapture,
 	}
 
 	[Serializable]

@@ -46,6 +46,7 @@ namespace BrowserHost.Renderer
 		private int bufferWidth;
 		private int bufferHeight;
 		private bool cursorOnBackground;
+		private Cursor cursor;
 
 		public TextureRenderHandler(System.Drawing.Size size)
 		{
@@ -89,11 +90,16 @@ namespace BrowserHost.Renderer
 				return;
 			}
 
+			// If the value changed, update state and fire off the event
 			var currentlyOnBackground = alpha == 0;
 			if (currentlyOnBackground != cursorOnBackground)
 			{
-				Console.WriteLine($"CURSOR ON BG: {currentlyOnBackground}");
 				cursorOnBackground = currentlyOnBackground;
+				Console.WriteLine($"onBg -> {currentlyOnBackground}");
+
+				// EDGE CASE: if cursor transitions onto alpha:0 _and_ between two native cursor types, I guess this will be a race cond.
+				// Not sure if should have two seperate upstreams for them, or try and prevent the race. consider.
+				CursorChanged?.Invoke(this, currentlyOnBackground ? Cursor.BrowserHostNoCapture : cursor);
 			}
 		}
 
@@ -258,7 +264,10 @@ namespace BrowserHost.Renderer
 
 		public void OnCursorChange(IntPtr cursorPtr, CursorType type, CursorInfo customCursorInfo)
 		{
-			CursorChanged?.Invoke(this, EncodeCursor(type));
+			cursor = EncodeCursor(type);
+
+			// If we're on background, don't flag a cursor change
+			if (!cursorOnBackground) { CursorChanged?.Invoke(this, cursor); }
 		}
 
 		public bool StartDragging(IDragData dragData, DragOperationsMask mask, int x, int y)
