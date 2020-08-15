@@ -144,7 +144,7 @@ namespace BrowserHost.Plugin
 			}
 			catch
 			{
-				PluginLog.LogError($"Faild to calculate checksum for {filePath}");
+				PluginLog.LogError($"Failed to calculate checksum for {filePath}");
 				downloadedChecksum = "FAILED";
 			}
 

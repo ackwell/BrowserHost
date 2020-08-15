@@ -95,7 +95,6 @@ namespace BrowserHost.Renderer
 			if (currentlyOnBackground != cursorOnBackground)
 			{
 				cursorOnBackground = currentlyOnBackground;
-				Console.WriteLine($"onBg -> {currentlyOnBackground}");
 
 				// EDGE CASE: if cursor transitions onto alpha:0 _and_ between two native cursor types, I guess this will be a race cond.
 				// Not sure if should have two seperate upstreams for them, or try and prevent the race. consider.
