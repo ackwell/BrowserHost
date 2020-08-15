@@ -7,6 +7,8 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Numerics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace BrowserHost.Plugin
@@ -16,6 +18,7 @@ namespace BrowserHost.Plugin
 		public string Url;
 		public string Version;
 		public string Directory;
+		public string Checksum;
 	}
 
 	class DependencyManager : IDisposable
@@ -26,8 +29,9 @@ namespace BrowserHost.Plugin
 			new Dependency()
 			{
 				Url = "https://github.com/ackwell/BrowserHost/releases/download/cef-binaries/cefsharp-{VERSION}.zip",
+				Directory = "cef",
 				Version = "81.3.10+gb223419+chromium-81.0.4044.138",
-				Directory = "cef"
+				Checksum = "02B06F5D7015493AD468C1548C237914C127506B3D3EDF9C3DDD4EB926B3F8CE",
 			}
 		};
 
@@ -42,6 +46,7 @@ namespace BrowserHost.Plugin
 			Confirm,
 			Installing,
 			Complete,
+			Failed,
 			Hidden,
 		}
 		private ViewMode viewMode = ViewMode.Hidden;
@@ -92,8 +97,9 @@ namespace BrowserHost.Plugin
 			var installTasks = missingDependencies.Select(InstallDependency);
 			Task.WhenAll(installTasks).ContinueWith(task =>
 			{
-				viewMode = ViewMode.Complete;
-				PluginLog.Log("Dependencies installed successfully.");
+				var failed = installProgress.Any(pair => pair.Value < 0);
+				viewMode = failed ? ViewMode.Failed : ViewMode.Complete;
+				PluginLog.Log($"Dependency install {viewMode}.");
 
 				try { Directory.Delete(Path.Combine(dependencyDir, downloadDir), true); }
 				catch { }
@@ -121,6 +127,35 @@ namespace BrowserHost.Plugin
 			await client.DownloadFileTaskAsync(
 				dependency.Url.Replace("{VERSION}", dependency.Version),
 				filePath);
+
+			// Calculate the checksum for the download
+			string downloadedChecksum;
+			try
+			{
+				using (var sha = SHA256.Create())
+				using (var stream = new FileStream(filePath, FileMode.Open))
+				{
+					stream.Position = 0;
+					var rawHash = sha.ComputeHash(stream);
+					var builder = new StringBuilder(rawHash.Length);
+					for (var i = 0; i < rawHash.Length; i++) { builder.Append($"{rawHash[i]:X2}"); }
+					downloadedChecksum = builder.ToString();
+				}
+			}
+			catch
+			{
+				PluginLog.LogError($"Faild to calculate checksum for {filePath}");
+				downloadedChecksum = "FAILED";
+			}
+
+			// Make sure the checksum matches
+			if (downloadedChecksum != dependency.Checksum)
+			{
+				PluginLog.LogError($"Mismatched checksum for {filePath}");
+				installProgress.AddOrUpdate(dependency.Directory, -1, (key, oldValue) => -1);
+				File.Delete(filePath);
+				return;
+			}
 
 			// Extract to the destination dir
 			var destinationDir = GetDependencyPath(dependency);
@@ -157,6 +192,7 @@ namespace BrowserHost.Plugin
 				case ViewMode.Confirm: RenderConfirm(); break;
 				case ViewMode.Installing: RenderInstalling(); break;
 				case ViewMode.Complete: RenderComplete(); break;
+				case ViewMode.Failed: RenderFailed(); break;
 			}
 
 			ImGui.End();
@@ -186,10 +222,18 @@ namespace BrowserHost.Plugin
 
 			ImGui.Separator();
 
+			var progressSize = new Vector2(200, 0);
+
 			foreach (var progress in installProgress)
 			{
-				if (progress.Value >= 100) { ImGui.ProgressBar(progress.Value / 100, new Vector2(200, 0), "Extracting"); }
-				else { ImGui.ProgressBar(progress.Value / 100, new Vector2(200, 0)); }
+				if (progress.Value >= 100) { ImGui.ProgressBar(progress.Value / 100, progressSize, "Extracting"); }
+				else if (progress.Value < 0)
+				{
+					ImGui.PushStyleColor(ImGuiCol.PlotHistogram, 0xAA0000FF);
+					ImGui.ProgressBar(1, progressSize, "Error");
+					ImGui.PopStyleColor();
+				}
+				else { ImGui.ProgressBar(progress.Value / 100, progressSize); }
 				ImGui.SameLine();
 				ImGui.Text(progress.Key);
 			}
@@ -199,6 +243,13 @@ namespace BrowserHost.Plugin
 		{
 			ImGui.Text("Dependency installation complete!");
 			if (ImGui.Button("OK", new Vector2(100, 0))) { CheckDependencies(); }
+		}
+
+		private void RenderFailed()
+		{
+			ImGui.Text("One or more dependencies failed to install successfully.");
+			ImGui.Text("If this keeps happening, let us known on discord.");
+			if (ImGui.Button("Retry", new Vector2(100, 0))) { CheckDependencies(); }
 		}
 	}
 }
