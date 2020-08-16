@@ -2,10 +2,16 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Threading;
+using System.Threading.Tasks;
 
 namespace BrowserHost.Common
 {
+	public class IpcResponse<TResponse>
+	{
+		public bool Success;
+		public TResponse Data;
+	}
+
 	public class IpcBuffer<TIncoming, TOutgoing> : RpcBuffer
 	{
 		private static BinaryFormatter formatter = new BinaryFormatter();
@@ -25,16 +31,26 @@ namespace BrowserHost.Common
 
 		public IpcBuffer(string name, Func<TIncoming, object> callback) : base(name, CallbackFactory(callback)) { }
 
-		public TResponse RemoteRequest<TResponse>(TOutgoing request, int timeout = 5000)
+		public IpcResponse<TResponse> RemoteRequest<TResponse>(TOutgoing request, int timeout = 5000)
 		{
 			var rawRequest = Encode(request);
-
 			var rawResponse = RemoteRequest(rawRequest, timeout);
-			// TODO: Error check
+			return new IpcResponse<TResponse>
+			{
+				Success = rawResponse.Success,
+				Data = rawResponse.Success ? Decode<TResponse>(rawResponse.Data) : default,
+			};
+		}
 
-			if (rawResponse.Data == null) { return default; }
-
-			return Decode<TResponse>(rawResponse.Data);
+		public async Task<IpcResponse<TResponse>> RemoteRequestAsync<TResponse>(TOutgoing request, int timeout = 5000)
+		{
+			var rawRequest = Encode(request);
+			var rawResponse = await RemoteRequestAsync(rawRequest, timeout);
+			return new IpcResponse<TResponse>
+			{
+				Success = rawResponse.Success,
+				Data = rawResponse.Success ? Decode<TResponse>(rawResponse.Data) : default,
+			};
 		}
 
 		private static byte[] Encode<T>(T value)
@@ -50,6 +66,8 @@ namespace BrowserHost.Common
 
 		private static T Decode<T>(byte[] encoded)
 		{
+			if (encoded == null) { return default; }
+
 			T value;
 			using (MemoryStream stream = new MemoryStream(encoded))
 			{

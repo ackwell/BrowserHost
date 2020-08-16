@@ -5,6 +5,7 @@ using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
 using System;
 using System.Numerics;
+using Dalamud.Plugin;
 
 namespace BrowserHost.Plugin
 {
@@ -12,6 +13,7 @@ namespace BrowserHost.Plugin
 	{
 		public InlayConfiguration Config;
 
+		private bool resizing = false;
 		private Vector2 size;
 
 		private RenderProcess renderProcess;
@@ -231,10 +233,10 @@ namespace BrowserHost.Plugin
 			});
 		}
 
-		private void HandleWindowSize()
+		private async void HandleWindowSize()
 		{
 			var currentSize = ImGui.GetWindowContentRegionMax() - ImGui.GetWindowContentRegionMin();
-			if (currentSize == size) { return; }
+			if (currentSize == size || resizing) { return; }
 
 			// If there isn't a size yet, we haven't rendered at all - boot up an inlay in the render process
 			// TODO: Edge case - if a user _somehow_ makes the size zero, this will freak out and generate a new render inlay
@@ -254,14 +256,23 @@ namespace BrowserHost.Plugin
 					Height = (int)currentSize.Y,
 				} as DownstreamIpcRequest;
 
-			var response = renderProcess.Send<TextureHandleResponse>(request);
+			resizing = true;
 
-			var oldTextureWrap = textureWrap;
-			try { textureWrap = BuildTextureWrap(response.TextureHandle); }
-			catch (Exception e) { textureRenderException = e; }
-			if (oldTextureWrap != null) { oldTextureWrap.Dispose(); }
+			var response = await renderProcess.Send<TextureHandleResponse>(request);
+			if (!response.Success)
+			{
+				PluginLog.LogError("Texture build failure, retrying...");
+				resizing = false;
+				return;
+			}
 
 			size = currentSize;
+			resizing = false;
+
+			var oldTextureWrap = textureWrap;
+			try { textureWrap = BuildTextureWrap(response.Data.TextureHandle); }
+			catch (Exception e) { textureRenderException = e; }
+			if (oldTextureWrap != null) { oldTextureWrap.Dispose(); }
 		}
 
 		private TextureWrap BuildTextureWrap(IntPtr textureHandle)
