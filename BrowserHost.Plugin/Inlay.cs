@@ -59,7 +59,7 @@ namespace BrowserHost.Plugin
 			// Check if there was a click, and use it to set the window focused state
 			// We're avoiding ImGui for this, as we want to check for clicks entirely outside
 			// ImGui's pervue to defocus inlays
-			if (msg == WindowsMessage.WM_LBUTTONDOWN) { windowFocused = mouseInWindow; }
+			if (msg == WindowsMessage.WM_LBUTTONDOWN) { windowFocused = mouseInWindow && captureCursor; }
 
 			// Bail if we're not focused
 			// TODO: Revisit this for UI stuff, might not hold
