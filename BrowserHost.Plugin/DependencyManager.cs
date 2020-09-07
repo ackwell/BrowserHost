@@ -2,6 +2,7 @@
 using ImGuiNET;
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -23,8 +24,8 @@ namespace BrowserHost.Plugin
 
 	class DependencyManager : IDisposable
 	{
-		private static string downloadDir = "downloads";
-		private static Dependency[] dependencies = new[]
+		private static string DOWNLOAD_DIR = "downloads";
+		private static Dependency[] DEPENDENCIES = new[]
 		{
 			new Dependency()
 			{
@@ -51,6 +52,11 @@ namespace BrowserHost.Plugin
 		}
 		private ViewMode viewMode = ViewMode.Hidden;
 
+		// Per-dependency special-cased progress values
+		private static short DEP_EXTRACTING = -1;
+		private static short DEP_COMPLETE = -2;
+		private static short DEP_FAILED = -3;
+
 		public DependencyManager(string pluginDir)
 		{
 			// We're storing dependencies a level above the plugin so they get preserved across plugin updates
@@ -66,7 +72,7 @@ namespace BrowserHost.Plugin
 
 		private void CheckDependencies()
 		{
-			missingDependencies = dependencies.Where(DependencyMissing).ToArray();
+			missingDependencies = DEPENDENCIES.Where(DependencyMissing).ToArray();
 			if (missingDependencies.Length == 0)
 			{
 				viewMode = ViewMode.Hidden;
@@ -97,11 +103,11 @@ namespace BrowserHost.Plugin
 			var installTasks = missingDependencies.Select(InstallDependency);
 			Task.WhenAll(installTasks).ContinueWith(task =>
 			{
-				var failed = installProgress.Any(pair => pair.Value < 0);
+				var failed = installProgress.Any(pair => pair.Value == DEP_FAILED);
 				viewMode = failed ? ViewMode.Failed : ViewMode.Complete;
 				PluginLog.Log($"Dependency install {viewMode}.");
 
-				try { Directory.Delete(Path.Combine(dependencyDir, downloadDir), true); }
+				try { Directory.Delete(Path.Combine(dependencyDir, DOWNLOAD_DIR), true); }
 				catch { }
 			});
 		}
@@ -111,7 +117,7 @@ namespace BrowserHost.Plugin
 			PluginLog.Log($"Downloading {dependency.Directory} {dependency.Version}");
 
 			// Ensure the downloads dir exists
-			var downloadDir = Path.Combine(dependencyDir, DependencyManager.downloadDir);
+			var downloadDir = Path.Combine(dependencyDir, DOWNLOAD_DIR);
 			Directory.CreateDirectory(downloadDir);
 
 			// Get the file name we'll download to - if it's already in downloads, it may be corrupt, delete
@@ -127,6 +133,9 @@ namespace BrowserHost.Plugin
 			await client.DownloadFileTaskAsync(
 				dependency.Url.Replace("{VERSION}", dependency.Version),
 				filePath);
+
+			// Download complete, mark as extracting
+			installProgress.AddOrUpdate(dependency.Directory, DEP_EXTRACTING, (key, oldValue) => DEP_EXTRACTING);
 
 			// Calculate the checksum for the download
 			string downloadedChecksum;
@@ -152,10 +161,12 @@ namespace BrowserHost.Plugin
 			if (downloadedChecksum != dependency.Checksum)
 			{
 				PluginLog.LogError($"Mismatched checksum for {filePath}");
-				installProgress.AddOrUpdate(dependency.Directory, -1, (key, oldValue) => -1);
+				installProgress.AddOrUpdate(dependency.Directory, DEP_FAILED, (key, oldValue) => DEP_FAILED);
 				File.Delete(filePath);
 				return;
 			}
+
+			installProgress.AddOrUpdate(dependency.Directory, DEP_COMPLETE, (key, oldValue) => DEP_COMPLETE);
 
 			// Extract to the destination dir
 			var destinationDir = GetDependencyPath(dependency);
@@ -169,7 +180,7 @@ namespace BrowserHost.Plugin
 
 		public string GetDependencyPathFor(string dependencyDir)
 		{
-			var dependency = dependencies.First(dependency => dependency.Directory == dependencyDir);
+			var dependency = DEPENDENCIES.First(dependency => dependency.Directory == dependencyDir);
 			if (dependency == null) { throw new Exception($"Unknown dependency {dependencyDir}"); }
 			return GetDependencyPath(dependency);
 		}
@@ -222,12 +233,46 @@ namespace BrowserHost.Plugin
 
 			ImGui.Separator();
 
+			RenderDownloadProgress();
+		}
+
+		private void RenderComplete()
+		{
+			ImGui.Text("Dependency installation complete!");
+
+			ImGui.Separator();
+
+			RenderDownloadProgress();
+
+			ImGui.Separator();
+
+			if (ImGui.Button("OK", new Vector2(100, 0))) { CheckDependencies(); }
+		}
+
+		private void RenderFailed()
+		{
+			ImGui.Text("One or more dependencies failed to install successfully.");
+			ImGui.Text("This is usually caused by network interruptions. Please retry.");
+			ImGui.Text("If this keeps happening, let us know on discord.");
+
+			ImGui.Separator();
+
+			RenderDownloadProgress();
+
+			ImGui.Separator();
+
+			if (ImGui.Button("Retry", new Vector2(100, 0))) { CheckDependencies(); }
+		}
+
+		private void RenderDownloadProgress()
+		{
 			var progressSize = new Vector2(200, 0);
 
 			foreach (var progress in installProgress)
 			{
-				if (progress.Value >= 100) { ImGui.ProgressBar(progress.Value / 100, progressSize, "Extracting"); }
-				else if (progress.Value < 0)
+				if (progress.Value == DEP_EXTRACTING) { ImGui.ProgressBar(1, progressSize, "Extracting"); }
+				else if (progress.Value == DEP_COMPLETE) { ImGui.ProgressBar(1, progressSize, "Complete"); }
+				else if (progress.Value == DEP_FAILED)
 				{
 					ImGui.PushStyleColor(ImGuiCol.PlotHistogram, 0xAA0000FF);
 					ImGui.ProgressBar(1, progressSize, "Error");
@@ -237,19 +282,6 @@ namespace BrowserHost.Plugin
 				ImGui.SameLine();
 				ImGui.Text(progress.Key);
 			}
-		}
-
-		private void RenderComplete()
-		{
-			ImGui.Text("Dependency installation complete!");
-			if (ImGui.Button("OK", new Vector2(100, 0))) { CheckDependencies(); }
-		}
-
-		private void RenderFailed()
-		{
-			ImGui.Text("One or more dependencies failed to install successfully.");
-			ImGui.Text("If this keeps happening, let us known on discord.");
-			if (ImGui.Button("Retry", new Vector2(100, 0))) { CheckDependencies(); }
 		}
 	}
 }
