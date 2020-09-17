@@ -1,5 +1,6 @@
 ﻿using BrowserHost.Common;
 using BrowserHost.Plugin.TextureHandlers;
+using Dalamud.Plugin;
 using ImGuiNET;
 using System;
 using System.Numerics;
@@ -11,6 +12,7 @@ namespace BrowserHost.Plugin
 		private Configuration config;
 		private InlayConfiguration inlayConfig;
 
+		private bool resizing = false;
 		private Vector2 size;
 
 		private RenderProcess renderProcess;
@@ -21,6 +23,7 @@ namespace BrowserHost.Plugin
 		private bool windowFocused;
 		private InputModifier modifier;
 		private ImGuiMouseCursor cursor;
+		private bool captureCursor;
 
 		public Inlay(RenderProcess renderProcess, Configuration config, InlayConfiguration inlayConfig)
 		{
@@ -47,6 +50,7 @@ namespace BrowserHost.Plugin
 
 		public void SetCursor(Cursor cursor)
 		{
+			captureCursor = cursor != Cursor.BrowserHostNoCapture;
 			this.cursor = DecodeCursor(cursor);
 		}
 
@@ -55,7 +59,7 @@ namespace BrowserHost.Plugin
 			// Check if there was a click, and use it to set the window focused state
 			// We're avoiding ImGui for this, as we want to check for clicks entirely outside
 			// ImGui's pervue to defocus inlays
-			if (msg == WindowsMessage.WM_LBUTTONDOWN) { windowFocused = mouseInWindow; }
+			if (msg == WindowsMessage.WM_LBUTTONDOWN) { windowFocused = mouseInWindow && captureCursor; }
 
 			// Bail if we're not focused
 			// TODO: Revisit this for UI stuff, might not hold
@@ -139,14 +143,21 @@ namespace BrowserHost.Plugin
 				| ImGuiWindowFlags.NoBringToFrontOnFocus
 				| ImGuiWindowFlags.NoFocusOnAppearing;
 
-			if (inlayConfig.Locked || inlayConfig.ClickThrough)
+			// ClickThrough is implicitly locked
+			var locked = Config.Locked || Config.ClickThrough;
+
+			if (locked)
 			{
 				flags |= ImGuiWindowFlags.None
 					| ImGuiWindowFlags.NoMove
 					| ImGuiWindowFlags.NoResize
 					| ImGuiWindowFlags.NoBackground;
 			}
-			if (inlayConfig.ClickThrough) { flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav; }
+
+			if (Config.ClickThrough || (!captureCursor && locked))
+			{
+				flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav;
+			}
 
 			return flags;
 		}
@@ -158,10 +169,20 @@ namespace BrowserHost.Plugin
 			if (renderProcess == null || inlayConfig.ClickThrough) { return; }
 
 			var io = ImGui.GetIO();
-			var mousePos = io.MousePos - ImGui.GetWindowPos() - ImGui.GetWindowContentRegionMin();
+			var windowPos = ImGui.GetWindowPos();
+			var mousePos = io.MousePos - windowPos - ImGui.GetWindowContentRegionMin();
+
+			// Generally we want to use IsWindowHovered for hit checking, as it takes z-stacking into account -
+			// but when cursor isn't being actively captured, imgui will always return false - so fall back
+			// so a slightly more naive hover check, just to maintain a bit of flood prevention.
+			// TODO: Need to test how this will handle overlaps... fully transparent _shouldn't_ be accepting
+			//       clicks so shouuulllddd beee fineee???
+			var hovered = captureCursor
+				? ImGui.IsWindowHovered()
+				: ImGui.IsMouseHoveringRect(windowPos, windowPos + ImGui.GetWindowSize());
 
 			// If the cursor is outside the window, send a final mouse leave then noop
-			if (!ImGui.IsWindowHovered())
+			if (!hovered)
 			{
 				if (mouseInWindow)
 				{
@@ -212,10 +233,10 @@ namespace BrowserHost.Plugin
 			});
 		}
 
-		private void HandleWindowSize()
+		private async void HandleWindowSize()
 		{
 			var currentSize = ImGui.GetWindowContentRegionMax() - ImGui.GetWindowContentRegionMin();
-			if (currentSize == size) { return; }
+			if (currentSize == size || resizing) { return; }
 
 			// If there isn't a size yet, we haven't rendered at all - boot up an inlay in the render process
 			// TODO: Edge case - if a user _somehow_ makes the size zero, this will freak out and generate a new render inlay
@@ -236,12 +257,23 @@ namespace BrowserHost.Plugin
 					Height = (int)currentSize.Y,
 				} as DownstreamIpcRequest;
 
-			var response = renderProcess.Send<FrameTransportResponse>(request);
+			resizing = true;
+
+			var response = await renderProcess.Send<FrameTransportResponse>(request);
+			if (!response.Success)
+			{
+				PluginLog.LogError("Texture build failure, retrying...");
+				resizing = false;
+				return;
+			}
+
+			size = currentSize;
+			resizing = false;
 
 			var oldTextureHandler = textureHandler;
 			try
 			{
-				textureHandler = response switch
+				textureHandler = response.Data switch
 				{
 					TextureHandleResponse textureHandleResponse => new SharedTextureHandler(textureHandleResponse),
 					BitmapBufferResponse bitmapBufferResponse => new BitmapBufferTextureHandler(bitmapBufferResponse),
@@ -250,8 +282,6 @@ namespace BrowserHost.Plugin
 			}
 			catch (Exception e) { textureRenderException = e; }
 			if (oldTextureHandler != null) { oldTextureHandler.Dispose(); }
-
-			size = currentSize;
 		}
 
 		#region serde

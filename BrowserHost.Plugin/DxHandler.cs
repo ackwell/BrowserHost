@@ -17,7 +17,8 @@ namespace BrowserHost.Plugin
 		{
 			// Drill into the UI builder to grab its reference to the dx device
 			var bindingFlags = BindingFlags.NonPublic | BindingFlags.Instance;
-			var interfaceManager = typeof(UiBuilder).GetField("interfaceManager", bindingFlags).GetValue(pluginInterface.UiBuilder);
+			var dalamud = typeof(DalamudPluginInterface).GetField("dalamud", bindingFlags).GetValue(pluginInterface);
+			var interfaceManager = dalamud.GetType().GetProperty("InterfaceManager", bindingFlags).GetValue(dalamud);
 			var scene = interfaceManager.GetType().GetField("scene", bindingFlags).GetValue(interfaceManager);
 
 			var sceneType = scene.GetType();

@@ -4,6 +4,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace BrowserHost.Plugin
 {
@@ -65,9 +66,9 @@ namespace BrowserHost.Plugin
 		public void Send(DownstreamIpcRequest request) { Send<object>(request); }
 
 		// TODO: Option to wrap this func in an async version?
-		public TResponse Send<TResponse>(DownstreamIpcRequest request)
+		public Task<IpcResponse<TResponse>> Send<TResponse>(DownstreamIpcRequest request)
 		{
-			return ipc.RemoteRequest<TResponse>(request);
+			return ipc.RemoteRequestAsync<TResponse>(request);
 		}
 
 		public void Stop()

@@ -2,11 +2,14 @@
 using ImGuiNET;
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Numerics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace BrowserHost.Plugin
@@ -16,18 +19,20 @@ namespace BrowserHost.Plugin
 		public string Url;
 		public string Version;
 		public string Directory;
+		public string Checksum;
 	}
 
 	class DependencyManager : IDisposable
 	{
-		private static string downloadDir = "downloads";
-		private static Dependency[] dependencies = new[]
+		private static string DOWNLOAD_DIR = "downloads";
+		private static Dependency[] DEPENDENCIES = new[]
 		{
 			new Dependency()
 			{
 				Url = "https://github.com/ackwell/BrowserHost/releases/download/cef-binaries/cefsharp-{VERSION}.zip",
+				Directory = "cef",
 				Version = "81.3.10+gb223419+chromium-81.0.4044.138",
-				Directory = "cef"
+				Checksum = "02B06F5D7015493AD468C1548C237914C127506B3D3EDF9C3DDD4EB926B3F8CE",
 			}
 		};
 
@@ -42,9 +47,15 @@ namespace BrowserHost.Plugin
 			Confirm,
 			Installing,
 			Complete,
+			Failed,
 			Hidden,
 		}
 		private ViewMode viewMode = ViewMode.Hidden;
+
+		// Per-dependency special-cased progress values
+		private static short DEP_EXTRACTING = -1;
+		private static short DEP_COMPLETE = -2;
+		private static short DEP_FAILED = -3;
 
 		public DependencyManager(string pluginDir)
 		{
@@ -61,7 +72,7 @@ namespace BrowserHost.Plugin
 
 		private void CheckDependencies()
 		{
-			missingDependencies = dependencies.Where(DependencyMissing).ToArray();
+			missingDependencies = DEPENDENCIES.Where(DependencyMissing).ToArray();
 			if (missingDependencies.Length == 0)
 			{
 				viewMode = ViewMode.Hidden;
@@ -92,10 +103,11 @@ namespace BrowserHost.Plugin
 			var installTasks = missingDependencies.Select(InstallDependency);
 			Task.WhenAll(installTasks).ContinueWith(task =>
 			{
-				viewMode = ViewMode.Complete;
-				PluginLog.Log("Dependencies installed successfully.");
+				var failed = installProgress.Any(pair => pair.Value == DEP_FAILED);
+				viewMode = failed ? ViewMode.Failed : ViewMode.Complete;
+				PluginLog.Log($"Dependency install {viewMode}.");
 
-				try { Directory.Delete(Path.Combine(dependencyDir, downloadDir), true); }
+				try { Directory.Delete(Path.Combine(dependencyDir, DOWNLOAD_DIR), true); }
 				catch { }
 			});
 		}
@@ -105,7 +117,7 @@ namespace BrowserHost.Plugin
 			PluginLog.Log($"Downloading {dependency.Directory} {dependency.Version}");
 
 			// Ensure the downloads dir exists
-			var downloadDir = Path.Combine(dependencyDir, DependencyManager.downloadDir);
+			var downloadDir = Path.Combine(dependencyDir, DOWNLOAD_DIR);
 			Directory.CreateDirectory(downloadDir);
 
 			// Get the file name we'll download to - if it's already in downloads, it may be corrupt, delete
@@ -122,6 +134,40 @@ namespace BrowserHost.Plugin
 				dependency.Url.Replace("{VERSION}", dependency.Version),
 				filePath);
 
+			// Download complete, mark as extracting
+			installProgress.AddOrUpdate(dependency.Directory, DEP_EXTRACTING, (key, oldValue) => DEP_EXTRACTING);
+
+			// Calculate the checksum for the download
+			string downloadedChecksum;
+			try
+			{
+				using (var sha = SHA256.Create())
+				using (var stream = new FileStream(filePath, FileMode.Open))
+				{
+					stream.Position = 0;
+					var rawHash = sha.ComputeHash(stream);
+					var builder = new StringBuilder(rawHash.Length);
+					for (var i = 0; i < rawHash.Length; i++) { builder.Append($"{rawHash[i]:X2}"); }
+					downloadedChecksum = builder.ToString();
+				}
+			}
+			catch
+			{
+				PluginLog.LogError($"Failed to calculate checksum for {filePath}");
+				downloadedChecksum = "FAILED";
+			}
+
+			// Make sure the checksum matches
+			if (downloadedChecksum != dependency.Checksum)
+			{
+				PluginLog.LogError($"Mismatched checksum for {filePath}");
+				installProgress.AddOrUpdate(dependency.Directory, DEP_FAILED, (key, oldValue) => DEP_FAILED);
+				File.Delete(filePath);
+				return;
+			}
+
+			installProgress.AddOrUpdate(dependency.Directory, DEP_COMPLETE, (key, oldValue) => DEP_COMPLETE);
+
 			// Extract to the destination dir
 			var destinationDir = GetDependencyPath(dependency);
 			try { Directory.Delete(destinationDir, true); }
@@ -134,7 +180,7 @@ namespace BrowserHost.Plugin
 
 		public string GetDependencyPathFor(string dependencyDir)
 		{
-			var dependency = dependencies.First(dependency => dependency.Directory == dependencyDir);
+			var dependency = DEPENDENCIES.First(dependency => dependency.Directory == dependencyDir);
 			if (dependency == null) { throw new Exception($"Unknown dependency {dependencyDir}"); }
 			return GetDependencyPath(dependency);
 		}
@@ -150,12 +196,14 @@ namespace BrowserHost.Plugin
 
 			var windowFlags = ImGuiWindowFlags.AlwaysAutoResize;
 			ImGui.Begin("BrowserHost dependencies", windowFlags);
+			ImGui.SetWindowFocus();
 
 			switch (viewMode)
 			{
 				case ViewMode.Confirm: RenderConfirm(); break;
 				case ViewMode.Installing: RenderInstalling(); break;
 				case ViewMode.Complete: RenderComplete(); break;
+				case ViewMode.Failed: RenderFailed(); break;
 			}
 
 			ImGui.End();
@@ -185,19 +233,55 @@ namespace BrowserHost.Plugin
 
 			ImGui.Separator();
 
-			foreach (var progress in installProgress)
-			{
-				if (progress.Value >= 100) { ImGui.ProgressBar(progress.Value / 100, new Vector2(200, 0), "Extracting"); }
-				else { ImGui.ProgressBar(progress.Value / 100, new Vector2(200, 0)); }
-				ImGui.SameLine();
-				ImGui.Text(progress.Key);
-			}
+			RenderDownloadProgress();
 		}
 
 		private void RenderComplete()
 		{
 			ImGui.Text("Dependency installation complete!");
+
+			ImGui.Separator();
+
+			RenderDownloadProgress();
+
+			ImGui.Separator();
+
 			if (ImGui.Button("OK", new Vector2(100, 0))) { CheckDependencies(); }
+		}
+
+		private void RenderFailed()
+		{
+			ImGui.Text("One or more dependencies failed to install successfully.");
+			ImGui.Text("This is usually caused by network interruptions. Please retry.");
+			ImGui.Text("If this keeps happening, let us know on discord.");
+
+			ImGui.Separator();
+
+			RenderDownloadProgress();
+
+			ImGui.Separator();
+
+			if (ImGui.Button("Retry", new Vector2(100, 0))) { CheckDependencies(); }
+		}
+
+		private void RenderDownloadProgress()
+		{
+			var progressSize = new Vector2(200, 0);
+
+			foreach (var progress in installProgress)
+			{
+				if (progress.Value == DEP_EXTRACTING) { ImGui.ProgressBar(1, progressSize, "Extracting"); }
+				else if (progress.Value == DEP_COMPLETE) { ImGui.ProgressBar(1, progressSize, "Complete"); }
+				else if (progress.Value == DEP_FAILED)
+				{
+					ImGui.PushStyleColor(ImGuiCol.PlotHistogram, 0xAA0000FF);
+					ImGui.ProgressBar(1, progressSize, "Error");
+					ImGui.PopStyleColor();
+				}
+				else { ImGui.ProgressBar(progress.Value / 100, progressSize); }
+				ImGui.SameLine();
+				ImGui.Text(progress.Key);
+			}
 		}
 	}
 }

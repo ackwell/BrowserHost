@@ -57,14 +57,17 @@
     </Reference>
     <Reference Include="SharpDX">
       <HintPath>..\..\Dalamud\Dalamud\bin\Release\SharpDX.dll</HintPath>
+      <HintPath>$(AppData)\XIVLauncher\addon\Hooks\SharpDX.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SharpDX.Direct3D11">
       <HintPath>..\..\Dalamud\Dalamud\bin\Release\SharpDX.Direct3D11.dll</HintPath>
+      <HintPath>$(AppData)\XIVLauncher\addon\Hooks\SharpDX.Direct3D11.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SharpDX.DXGI">
       <HintPath>..\..\Dalamud\Dalamud\bin\Release\SharpDX.DXGI.dll</HintPath>
+      <HintPath>$(AppData)\XIVLauncher\addon\Hooks\SharpDX.DXGI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
