@@ -1,5 +1,4 @@
-﻿using BrowserHost.Common;
-using CefSharp;
+﻿using CefSharp;
 using CefSharp.Structs;
 using D3D11 = SharpDX.Direct3D11;
 using DXGI = SharpDX.DXGI;
@@ -41,8 +40,6 @@ namespace BrowserHost.Renderer.RenderHandlers
 		private IntPtr bufferPtr;
 		private int bufferWidth;
 		private int bufferHeight;
-		private bool cursorOnBackground;
-		private Cursor cursor;
 
 		public TextureRenderHandler(System.Drawing.Size size)
 		{
@@ -68,7 +65,7 @@ namespace BrowserHost.Renderer.RenderHandlers
 
 		// Nasty shit needs nasty attributes.
 		[HandleProcessCorruptedStateExceptions]
-		public void SetMousePosition(int x, int y)
+		protected override byte GetAlphaAt(int x, int y)
 		{
 			var rowPitch = bufferWidth * bytesPerPixel;
 
@@ -83,19 +80,10 @@ namespace BrowserHost.Renderer.RenderHandlers
 			catch
 			{
 				Console.Error.WriteLine("Failed to read alpha value from cef buffer.");
-				return;
+				return 255;
 			}
 
-			// If the value changed, update state and fire off the event
-			var currentlyOnBackground = alpha == 0;
-			if (currentlyOnBackground != cursorOnBackground)
-			{
-				cursorOnBackground = currentlyOnBackground;
-
-				// EDGE CASE: if cursor transitions onto alpha:0 _and_ between two native cursor types, I guess this will be a race cond.
-				// Not sure if should have two seperate upstreams for them, or try and prevent the race. consider.
-				CursorChanged?.Invoke(this, currentlyOnBackground ? Cursor.BrowserHostNoCapture : cursor);
-			}
+			return alpha;
 		}
 
 		private D3D11.Texture2D BuildViewTexture(System.Drawing.Size size)
@@ -226,19 +214,5 @@ namespace BrowserHost.Renderer.RenderHandlers
 
 			if (oldTexture != null) { oldTexture.Dispose(); }
 		}
-<<<<<<< HEAD:BrowserHost.Renderer/RenderHandlers/TextureRenderHandler.cs
-=======
-
-		public void OnCursorChange(IntPtr cursorPtr, CursorType type, CursorInfo customCursorInfo)
-		{
-			cursor = EncodeCursor(type);
-
-			// If we're on background, don't flag a cursor change
-			if (!cursorOnBackground) { CursorChanged?.Invoke(this, cursor); }
-		}
-
-
-		#endregion
->>>>>>> master:BrowserHost.Renderer/TextureRenderHandler.cs
 	}
 }

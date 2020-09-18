@@ -11,6 +11,10 @@ namespace BrowserHost.Renderer.RenderHandlers
 	{
 		public event EventHandler<Cursor> CursorChanged;
 
+		// Transparent background click-through state
+		private bool cursorOnBackground;
+		private Cursor cursor;
+
 		public abstract void Dispose();
 
 		public abstract void Resize(System.Drawing.Size size);
@@ -19,6 +23,26 @@ namespace BrowserHost.Renderer.RenderHandlers
 		{
 			return new ScreenInfo() { DeviceScaleFactor = 1.0F };
 		}
+
+		public void SetMousePosition(int x, int y)
+		{
+			var alpha = GetAlphaAt(x, y);
+
+			// We treat 0 alpha as click through - if changed, fire off the event
+			var currentlyOnBackground = alpha == 0;
+			if (currentlyOnBackground != cursorOnBackground)
+			{
+				cursorOnBackground = currentlyOnBackground;
+
+				// EDGE CASE: if cursor transitions onto alpha:0 _and_ between two native cursor types, I guess this will be a race cond.
+				// Not sure if should have two seperate upstreams for them, or try and prevent the race. consider.
+				CursorChanged?.Invoke(this, currentlyOnBackground ? Cursor.BrowserHostNoCapture : cursor);
+			}
+		}
+
+		protected abstract byte GetAlphaAt(int x, int y);
+
+		#region IRenderHandler
 
 		public bool GetScreenPoint(int viewX, int viewY, out int screenX, out int screenY)
 		{
@@ -53,7 +77,10 @@ namespace BrowserHost.Renderer.RenderHandlers
 
 		public void OnCursorChange(IntPtr cursorPtr, CursorType type, CursorInfo customCursorInfo)
 		{
-			CursorChanged?.Invoke(this, EncodeCursor(type));
+			cursor = EncodeCursor(type);
+
+			// If we're on background, don't flag a cursor change
+			if (!cursorOnBackground) { CursorChanged?.Invoke(this, cursor); }
 		}
 
 		public bool StartDragging(IDragData dragData, DragOperationsMask mask, int x, int y)
@@ -65,6 +92,8 @@ namespace BrowserHost.Renderer.RenderHandlers
 		public void UpdateDragCursor(DragOperationsMask operation)
 		{
 		}
+
+		#endregion
 
 		#region Cursor encoding
 

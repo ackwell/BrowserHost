@@ -144,7 +144,7 @@ namespace BrowserHost.Plugin
 				| ImGuiWindowFlags.NoFocusOnAppearing;
 
 			// ClickThrough is implicitly locked
-			var locked = Config.Locked || Config.ClickThrough;
+			var locked = inlayConfig.Locked || inlayConfig.ClickThrough;
 
 			if (locked)
 			{
@@ -154,7 +154,7 @@ namespace BrowserHost.Plugin
 					| ImGuiWindowFlags.NoBackground;
 			}
 
-			if (Config.ClickThrough || (!captureCursor && locked))
+			if (inlayConfig.ClickThrough || (!captureCursor && locked))
 			{
 				flags |= ImGuiWindowFlags.NoMouseInputs | ImGuiWindowFlags.NoNav;
 			}

@@ -40,6 +40,12 @@ namespace BrowserHost.Renderer.RenderHandlers
 			// TODO
 		}
 
+		protected override byte GetAlphaAt(int x, int y)
+		{
+			// TODO
+			return 255;
+		}
+
 		public override Rect GetViewRect()
 		{
 			return new Rect(0, 0, size.Width, size.Height);

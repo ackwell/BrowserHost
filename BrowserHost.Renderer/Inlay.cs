@@ -85,7 +85,7 @@ namespace BrowserHost.Renderer
 			var cursorY = (int)request.Y;
 
 			// Update the renderer's concept of the mouse cursor
-			renderHandler.SetMousePosition(cursorX, cursorY);
+			RenderHandler.SetMousePosition(cursorX, cursorY);
 
 			var event_ = new MouseEvent(cursorX, cursorY, DecodeInputModifier(request.Modifier));
 
