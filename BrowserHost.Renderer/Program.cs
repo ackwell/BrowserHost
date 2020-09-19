@@ -51,10 +51,21 @@ namespace BrowserHost.Renderer
 			AppDomain.CurrentDomain.FirstChanceException += (obj, e) => Console.Error.WriteLine(e.Exception.ToString());
 #endif
 
-			DxHandler.Initialise(args.DxgiAdapterLuid);
+			var dxRunning = DxHandler.Initialise(args.DxgiAdapterLuid);
 			CefHandler.Initialise(cefAssemblyDir, args.CefCacheDir);
 
 			ipcBuffer = new IpcBuffer<DownstreamIpcRequest, UpstreamIpcRequest>(args.IpcChannelName, HandleIpcRequest);
+
+			Console.WriteLine("Notifiying on ready state.");
+
+			// We always support bitmap buffer transport
+			var availableTransports = FrameTransportMode.BitmapBuffer;
+			if (dxRunning) { availableTransports |= FrameTransportMode.SharedTexture; }
+
+			ipcBuffer.RemoteRequest<object>(new ReadyNotificationRequest()
+			{
+				availableTransports = availableTransports,
+			});
 
 			Console.WriteLine("Waiting...");
 

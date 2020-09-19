@@ -103,6 +103,13 @@ namespace BrowserHost.Plugin
 		{
 			switch (request)
 			{
+				case ReadyNotificationRequest readyNotificationRequest:
+				{
+					settings.SetAvailableTransports(readyNotificationRequest.availableTransports);
+					settings.HydrateInlays();
+					return null;
+				}
+
 				case SetCursorRequest setCursorRequest:
 				{
 					var inlay = inlays[setCursorRequest.Guid];

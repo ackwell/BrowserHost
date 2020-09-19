@@ -35,16 +35,17 @@ namespace BrowserHost.Common
 		public int Length;
 	}
 
+	public enum FrameTransportMode
+	{
+		None = 0,
+		SharedTexture = 1 << 0,
+		BitmapBuffer = 1 << 1,
+	}
+
 	#region Downstream IPC
 
 	[Serializable]
 	public class DownstreamIpcRequest { }
-
-	public enum FrameTransportMode
-	{
-		SharedTexture,
-		BitmapBuffer,
-	}
 
 	[Serializable]
 	public class NewInlayRequest : DownstreamIpcRequest {
@@ -157,6 +158,12 @@ namespace BrowserHost.Common
 
 	[Serializable]
 	public class UpstreamIpcRequest { }
+
+	[Serializable]
+	public class ReadyNotificationRequest : UpstreamIpcRequest
+	{
+		public FrameTransportMode availableTransports;
+	}
 
 	// Akk, did you really write out every supported value of the cursor property despite both sides of the IPC not supporting the full set?
 	// Yes. Yes I did.

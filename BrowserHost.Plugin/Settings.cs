@@ -4,9 +4,10 @@ using Dalamud.Interface;
 using Dalamud.Plugin;
 using ImGuiNET;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace BrowserHost.Plugin
 {
@@ -27,6 +28,8 @@ namespace BrowserHost.Plugin
 		private bool open = false;
 #endif
 
+		private List<FrameTransportMode> availableTransports = new List<FrameTransportMode>();
+
 		InlayConfiguration selectedInlay = null;
 		private Timer saveDebounceTimer;
 
@@ -44,17 +47,32 @@ namespace BrowserHost.Plugin
 
 		public void Initialise()
 		{
-			// Running this in a thread to avoid blocking the plugin init with potentially expensive stuff
-			Task.Run(() =>
-			{
-				Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+			Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+		}
 
-				// Hydrate any inlays in the config
-				foreach (var inlayConfig in Config.Inlays)
-				{
-					InlayAdded?.Invoke(this, inlayConfig);
-				}
-			});
+		public void SetAvailableTransports(FrameTransportMode transports)
+		{
+			// Decode bit flags to array for easier ui crap
+			availableTransports = Enum.GetValues(typeof(FrameTransportMode))
+				.Cast<FrameTransportMode>()
+				.Where(transport => transport != FrameTransportMode.None && transports.HasFlag(transport))
+				.ToList();
+
+			// If the configured transport isn't available, pick the first so we don't end up in a weird spot.
+			// NOTE: Might be nice to avoid saving this to disc - a one-off failure may cause a save of full fallback mode.
+			if (availableTransports.Count > 0 && !availableTransports.Contains(Config.FrameTransportMode))
+			{
+				Config.FrameTransportMode = availableTransports[0];
+			}
+		}
+
+		public void HydrateInlays()
+		{
+			// Hydrate any inlays in the config
+			foreach (var inlayConfig in Config.Inlays)
+			{
+				InlayAdded?.Invoke(this, inlayConfig);
+			}
 		}
 
 		public void Dispose() { }
@@ -208,12 +226,28 @@ namespace BrowserHost.Plugin
 
 			ImGui.Text("Select an inlay on the left to edit its settings.");
 
-			// TODO: Flipping this should probably try to rebuild existing inlays
-			var altFrameTransport = Config.FrameTransportMode == FrameTransportMode.BitmapBuffer;
-			dirty |= ImGui.Checkbox("Use alternate frame transport", ref altFrameTransport);
-			Config.FrameTransportMode = altFrameTransport
-				? FrameTransportMode.BitmapBuffer
-				: FrameTransportMode.SharedTexture;
+			if (ImGui.CollapsingHeader("Advanced settings"))
+			{
+				var options = availableTransports.Select(transport => transport.ToString());
+				var currentIndex = availableTransports.IndexOf(Config.FrameTransportMode);
+
+				if (availableTransports.Count == 0)
+				{
+					options = options.Append("Initialising...");
+					currentIndex = 0;
+				}
+
+				if (options.Count() <= 1) { ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f); }
+				var transportChanged =  ImGui.Combo("Frame transport", ref currentIndex, options.ToArray(), options.Count());
+				if (options.Count() <= 1) { ImGui.PopStyleVar(); }
+
+				// TODO: Flipping this should probably try to rebuild existing inlays
+				dirty |= transportChanged;
+				if (transportChanged)
+				{
+					Config.FrameTransportMode = availableTransports[currentIndex];
+				}
+			}
 
 			return dirty;
 		}
