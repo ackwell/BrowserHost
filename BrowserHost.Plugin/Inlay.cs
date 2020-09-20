@@ -11,6 +11,7 @@ namespace BrowserHost.Plugin
 	{
 		private Configuration config;
 		private InlayConfiguration inlayConfig;
+		public Guid RenderGuid { get; private set; } = Guid.NewGuid();
 
 		private bool resizing = false;
 		private Vector2 size;
@@ -35,17 +36,17 @@ namespace BrowserHost.Plugin
 		public void Dispose()
 		{
 			textureHandler?.Dispose();
-			renderProcess.Send(new RemoveInlayRequest() { Guid = inlayConfig.Guid });
+			renderProcess.Send(new RemoveInlayRequest() { Guid = RenderGuid });
 		}
 
 		public void Navigate(string newUrl)
 		{
-			renderProcess.Send(new NavigateInlayRequest() { Guid = inlayConfig.Guid, Url = newUrl });
+			renderProcess.Send(new NavigateInlayRequest() { Guid = RenderGuid, Url = newUrl });
 		}
 
 		public void Debug()
 		{
-			renderProcess.Send(new DebugInlayRequest() { Guid = inlayConfig.Guid });
+			renderProcess.Send(new DebugInlayRequest() { Guid = RenderGuid });
 		}
 
 		public void SetCursor(Cursor cursor)
@@ -97,7 +98,7 @@ namespace BrowserHost.Plugin
 
 			renderProcess.Send(new KeyEventRequest()
 			{
-				Guid = inlayConfig.Guid,
+				Guid = RenderGuid,
 				Type = eventType.Value,
 				SystemKey = isSystemKey,
 				UserKeyCode = (int)wParam,
@@ -189,7 +190,7 @@ namespace BrowserHost.Plugin
 					mouseInWindow = false;
 					renderProcess.Send(new MouseEventRequest()
 					{
-						Guid = inlayConfig.Guid,
+						Guid = RenderGuid,
 						X = mousePos.X,
 						Y = mousePos.Y,
 						Leaving = true,
@@ -221,7 +222,7 @@ namespace BrowserHost.Plugin
 			// TODO: Either this or the entire handler function should be asynchronous so we're not blocking the entire draw thread
 			renderProcess.Send(new MouseEventRequest()
 			{
-				Guid = inlayConfig.Guid,
+				Guid = RenderGuid,
 				X = mousePos.X,
 				Y = mousePos.Y,
 				Down = down,
@@ -244,7 +245,7 @@ namespace BrowserHost.Plugin
 			var request = size == Vector2.Zero
 				? new NewInlayRequest()
 				{
-					Guid = inlayConfig.Guid,
+					Guid = RenderGuid,
 					FrameTransportMode = config.FrameTransportMode,
 					Url = inlayConfig.Url,
 					Width = (int)currentSize.X,
@@ -252,7 +253,7 @@ namespace BrowserHost.Plugin
 				}
 				: new ResizeInlayRequest()
 				{
-					Guid = inlayConfig.Guid,
+					Guid = RenderGuid,
 					Width = (int)currentSize.X,
 					Height = (int)currentSize.Y,
 				} as DownstreamIpcRequest;

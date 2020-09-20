@@ -112,7 +112,9 @@ namespace BrowserHost.Plugin
 
 				case SetCursorRequest setCursorRequest:
 				{
-					var inlay = inlays[setCursorRequest.Guid];
+					// TODO: Integrate ideas from Bridge re: SoC between widget and inlay
+					var inlay = inlays.Values.Where(inlay => inlay.RenderGuid == setCursorRequest.Guid).FirstOrDefault();
+					if (inlay == null) { return null; }
 					inlay.SetCursor(setCursorRequest.Cursor);
 					return null;
 				}
