@@ -63,6 +63,7 @@ namespace BrowserHost.Plugin
 			settings.InlayNavigated += OnInlayNavigated;
 			settings.InlayDebugged += OnInlayDebugged;
 			settings.InlayRemoved += OnInlayRemoved;
+			settings.TransportChanged += OnTransportChanged;
 			settings.Initialise();
 		}
 
@@ -97,6 +98,15 @@ namespace BrowserHost.Plugin
 			var inlay = inlays[config.Guid];
 			inlays.Remove(config.Guid);
 			inlay.Dispose();
+		}
+
+		private void OnTransportChanged(object sender, EventArgs unused)
+		{
+			// Transport has changed, need to rebuild all the inlay renderers
+			foreach (var inlay in inlays.Values)
+			{
+				inlay.InvalidateTransport();
+			}
 		}
 
 		private object HandleIpcRequest(object sender, UpstreamIpcRequest request)

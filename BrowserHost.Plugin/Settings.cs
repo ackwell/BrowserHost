@@ -17,6 +17,7 @@ namespace BrowserHost.Plugin
 		public event EventHandler<InlayConfiguration> InlayNavigated;
 		public event EventHandler<InlayConfiguration> InlayDebugged;
 		public event EventHandler<InlayConfiguration> InlayRemoved;
+		public event EventHandler TransportChanged;
 
 		public Configuration Config;
 
@@ -62,7 +63,7 @@ namespace BrowserHost.Plugin
 			// NOTE: Might be nice to avoid saving this to disc - a one-off failure may cause a save of full fallback mode.
 			if (availableTransports.Count > 0 && !availableTransports.Contains(Config.FrameTransportMode))
 			{
-				Config.FrameTransportMode = availableTransports[0];
+				SetActiveTransport(availableTransports[0]);
 			}
 		}
 
@@ -110,6 +111,12 @@ namespace BrowserHost.Plugin
 			InlayRemoved?.Invoke(this, inlayConfig);
 			Config.Inlays.Remove(inlayConfig);
 			SaveSettings();
+		}
+
+		private void SetActiveTransport(FrameTransportMode transport)
+		{
+			Config.FrameTransportMode = transport;
+			TransportChanged?.Invoke(this, null);
 		}
 
 		private void DebouncedSaveSettings()
@@ -245,7 +252,7 @@ namespace BrowserHost.Plugin
 				dirty |= transportChanged;
 				if (transportChanged)
 				{
-					Config.FrameTransportMode = availableTransports[currentIndex];
+					SetActiveTransport(availableTransports[currentIndex]);
 				}
 			}
 

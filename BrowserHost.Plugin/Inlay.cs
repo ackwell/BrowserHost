@@ -49,6 +49,24 @@ namespace BrowserHost.Plugin
 			renderProcess.Send(new DebugInlayRequest() { Guid = RenderGuid });
 		}
 
+		public void InvalidateTransport()
+		{
+			// Get old refs so we can clean up later
+			var oldTextureHandler = textureHandler;
+			var oldRenderGuid = RenderGuid;
+
+			// Invalidate the handler, and reset the size to trigger a rebuild
+			// Also need to generate a new renderer guid so we don't have a collision during the hand over
+			// TODO: Might be able to tweak the logic in resize alongside this to shore up (re)builds
+			textureHandler = null;
+			size = Vector2.Zero;
+			RenderGuid = Guid.NewGuid();
+
+			// Clean up
+			oldTextureHandler.Dispose();
+			renderProcess.Send(new RemoveInlayRequest() { Guid = oldRenderGuid });
+		}
+
 		public void SetCursor(Cursor cursor)
 		{
 			captureCursor = cursor != Cursor.BrowserHostNoCapture;
