@@ -73,7 +73,7 @@ namespace BrowserHost.Plugin
 				WindowsMessage.WM_SYSKEYUP => KeyEventType.KeyUp,
 				WindowsMessage.WM_CHAR => KeyEventType.Character,
 				WindowsMessage.WM_SYSCHAR => KeyEventType.Character,
-				_ => null,
+				_ => (KeyEventType?) null,
 			};
 
 			// If the event isn't something we're tracking, bail early with no capture
@@ -111,6 +111,9 @@ namespace BrowserHost.Plugin
 
 		public void Render()
 		{
+			if (!Config.Visible)
+				return;
+
 			ImGui.SetNextWindowSize(new Vector2(640, 480), ImGuiCond.FirstUseEver);
 			ImGui.Begin($"{Config.Name}###{Config.Guid}", GetWindowFlags());
 

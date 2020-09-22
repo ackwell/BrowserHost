@@ -211,6 +211,10 @@ namespace BrowserHost.Plugin
 			dirty |= ImGui.Checkbox("Click Through", ref inlayConfig.ClickThrough);
 			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from intecepting any mouse events."); }
 
+			ImGui.SameLine();
+			dirty |= ImGui.Checkbox("Visible", ref inlayConfig.Visible);
+			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Show the inlay."); }
+
 			if (ImGui.Button("Reload")) { ReloadInlay(inlayConfig); }
 
 			ImGui.SameLine();
