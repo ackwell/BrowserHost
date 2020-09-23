@@ -6,6 +6,7 @@ using System;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
+using Dalamud.Game.Internal.Gui;
 
 namespace BrowserHost.Plugin
 {
@@ -34,11 +35,54 @@ namespace BrowserHost.Plugin
 			this.pluginInterface = pluginInterface;
 
 			pluginInterface.UiBuilder.OnOpenConfigUi += (sender, args) => open = true;
-			pluginInterface.CommandManager.AddHandler("/pbrowser", new CommandInfo((command, arguments) => open = true)
+			pluginInterface.CommandManager.AddHandler("/pbrowser", new CommandInfo(HandleCommand)
 			{
 				HelpMessage = "Open BrowserHost configuration pane.",
 				ShowInHelp = true,
 			});
+		}
+
+		public void HandleCommand(string command, string arguments)
+		{
+			if (arguments == string.Empty)
+			{
+				// Just show the UI.
+				open = true;
+				return;
+			}
+
+			string[] args = arguments.Split(new [] {' '}, 2);
+
+			if (args.Length != 2)
+				// Invalid...
+				return;
+
+			InlayConfiguration targetInlay;
+			try
+			{
+				targetInlay = config.Inlays.Find(i => i.Name == args[1]);
+			}
+			catch (ArgumentNullException)
+			{
+				// Invalid inlay name
+				return;
+			}
+
+			switch (args[0])
+			{
+				case "show":
+					targetInlay.Visible = true;
+					break;
+				case "hide":
+					targetInlay.Visible = false;
+					break;
+				case "toggle":
+					targetInlay.Visible = !targetInlay.Visible;
+					break;
+				default:
+					// Invalid action
+					break;
+			}
 		}
 
 		public void Initialise()
