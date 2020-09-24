@@ -37,7 +37,8 @@ namespace BrowserHost.Plugin
 			pluginInterface.UiBuilder.OnOpenConfigUi += (sender, args) => open = true;
 			pluginInterface.CommandManager.AddHandler("/pbrowser", new CommandInfo(HandleCommand)
 			{
-				HelpMessage = "Open BrowserHost configuration pane.",
+				HelpMessage = "Open BrowserHost configuration pane with '/pbrowser', or change the visibility of an inlay with " +
+				              "'/pbrowser [show,hide,toggle] <inlay name>'.",
 				ShowInHelp = true,
 			});
 		}
