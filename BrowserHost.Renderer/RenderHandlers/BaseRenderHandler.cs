@@ -71,7 +71,7 @@ namespace BrowserHost.Renderer.RenderHandlers
 		{
 		}
 
-		public void OnImeCompositionRangeChanged(Range selectedRange, Rect[] characterBounds)
+		public void OnImeCompositionRangeChanged(CefSharp.Structs.Range selectedRange, Rect[] characterBounds)
 		{
 		}
 
