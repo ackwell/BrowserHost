@@ -5,6 +5,7 @@ using SharedMemory;
 using D3D = SharpDX.Direct3D;
 using D3D11 = SharpDX.Direct3D11;
 using DXGI = SharpDX.DXGI;
+using System;
 using System.Numerics;
 using System.Threading;
 using System.Collections.Concurrent;
@@ -69,14 +70,29 @@ namespace BrowserHost.Plugin.TextureHandlers
 				return;
 			}
 
-			// Write data from the buffer
-			var rowPitch = frame.Length / frame.Height;
+			// Calculate multipliers for the frame
 			var depthPitch = frame.Length;
+			var rowPitch = frame.Length / frame.Height;
+			var bytesPerPixel = rowPitch / frame.Width;
 
+			// Build the destination region for the dirty rect we're drawing
+			var texDesc = texture.Description;
+			var sourceRegionOffset = (frame.DirtyX * bytesPerPixel) + (frame.DirtyY * rowPitch);
+			var destinationRegion = new D3D11.ResourceRegion()
+			{
+				Top = Math.Min(frame.DirtyY, texDesc.Height),
+				Bottom = Math.Min(frame.DirtyY + frame.DirtyHeight, texDesc.Height),
+				Left = Math.Min(frame.DirtyX, texDesc.Width),
+				Right = Math.Min(frame.DirtyX + frame.DirtyWidth, texDesc.Width),
+				Front = 0,
+				Back = 1,
+			};
+
+			// Write data from the buffer
 			var context = DxHandler.Device.ImmediateContext;
 			bitmapBuffer.Read(ptr =>
 			{
-				context.UpdateSubresource(texture, 0, null, ptr, rowPitch, depthPitch);
+				context.UpdateSubresource(texture, 0, destinationRegion, ptr + sourceRegionOffset, rowPitch, depthPitch);
 			});
 		}
 

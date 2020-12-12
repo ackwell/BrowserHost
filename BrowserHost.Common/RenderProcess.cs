@@ -25,14 +25,15 @@ namespace BrowserHost.Common
 		}
 	}
 
-	// TODO: Perhaps look into seperate buffers for bitmap data and frame info?
 	public struct BitmapFrame
 	{
+		public int Length;
 		public int Width;
 		public int Height;
-
-		// Length of the incoming data in next node
-		public int Length;
+		public int DirtyX;
+		public int DirtyY;
+		public int DirtyWidth;
+		public int DirtyHeight;
 	}
 
 	public enum FrameTransportMode

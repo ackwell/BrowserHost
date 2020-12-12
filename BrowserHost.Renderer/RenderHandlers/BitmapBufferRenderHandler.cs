@@ -76,9 +76,13 @@ namespace BrowserHost.Renderer.RenderHandlers
 			var length = bytesPerPixel * width * height;
 			var frame = new BitmapFrame()
 			{
+				Length = length,
 				Width = width,
 				Height = height,
-				Length = length,
+				DirtyX = dirtyRect.X,
+				DirtyY = dirtyRect.Y,
+				DirtyWidth = dirtyRect.Width,
+				DirtyHeight = dirtyRect.Height,
 			};
 
 			WriteToBuffers(frame, buffer);
