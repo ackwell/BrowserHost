@@ -36,9 +36,11 @@ namespace BrowserHost.Plugin.TextureHandlers
 
 		public void Render()
 		{
-			// Render incoming frame info on the queue
-			// TODO: Should snapshot before looping, this has an edge case of never completing if game is slow and renderer is fast
-			while (frameQueue.TryDequeue(out BitmapFrame frame))
+			// Render incoming frame info on the queue. Doing a queue swap to prevent edge cases where a slow game
+			// paired with a fast renderer will loop dequeue infinitely.
+			var currentFrameQueue = frameQueue;
+			frameQueue = new ConcurrentQueue<BitmapFrame>();
+			while (currentFrameQueue.TryDequeue(out BitmapFrame frame))
 			{
 				RenderFrame(frame);
 			}
@@ -50,16 +52,21 @@ namespace BrowserHost.Plugin.TextureHandlers
 
 		private void RenderFrame(BitmapFrame frame)
 		{
-			// If the frame size has changed, build a new dx texture to render to.
-			// TODO: There's no guarantee that we're reading from the bitmap buffer in sync with the info due to Fun With Threads.
-			//       Work out how resizing will work to prevent reading new-size buffer into old-size texture. New bitmap mmap?
-			if (
-				texture == null ||
-				texture.Description.Width != frame.Width ||
-				texture.Description.Height != frame.Height
-			)
+			// Make sure there's a texture to render to
+			// TODO: Can probably afford to remove width/height from frame, and just add the buffer name. this client code can then check that the buffer name matches what it expects, and noop if it doesn't
+			if (texture == null)
 			{
 				BuildTexture(frame.Width, frame.Height);
+			}
+
+			// If the details don't match our expected sizes, noop the frame to avoid a CTD.
+			// This may "stick" and cause no rendering at all, but can be fixed by jiggling the size a bit, or reloading.
+			if (
+				texture.Description.Width != frame.Width
+				|| texture.Description.Height != frame.Height
+				|| bitmapBuffer.BufferSize != frame.Length
+			) {
+				return;
 			}
 
 			// Write data from the buffer

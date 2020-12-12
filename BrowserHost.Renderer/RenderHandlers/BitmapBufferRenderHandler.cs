@@ -4,6 +4,7 @@ using CefSharp.Structs;
 using SharedMemory;
 using System;
 using System.Collections.Concurrent;
+using System.Runtime.ExceptionServices;
 
 namespace BrowserHost.Renderer.RenderHandlers
 {
@@ -19,15 +20,15 @@ namespace BrowserHost.Renderer.RenderHandlers
 		private CircularBuffer frameInfoBuffer;
 		private System.Drawing.Size size;
 
-		private ConcurrentBag<BufferReadWrite> obsoleteBuffers = new ConcurrentBag<BufferReadWrite>();
+		private ConcurrentBag<SharedBuffer> obsoleteBuffers = new ConcurrentBag<SharedBuffer>();
 
 		public BitmapBufferRenderHandler(System.Drawing.Size size)
 		{
 			this.size = size;
 
-			bitmapBuffer = BuildBitmapBuffer(size);
+			BuildBitmapBuffer(size);
 
-			// TODO: Sane size. Do we want to realloc buffers every resize or stone one or...?
+			// TODO: Sane size.
 			var frameInfoBuffername = $"BrowserHostFrameInfoBuffer{Guid.NewGuid()}";
 			frameInfoBuffer = new CircularBuffer(frameInfoBuffername, 5, 1024 /* 1K */);
 		}
@@ -47,15 +48,9 @@ namespace BrowserHost.Renderer.RenderHandlers
 				return;
 			}
 
-			var oldBuffer = bitmapBuffer;
-
-			// Build a new buffer & set up on instance
-			var newBuffer = BuildBitmapBuffer(newSize);
+			// Build new buffers & set up on instance
 			size = newSize;
-			bitmapBuffer = newBuffer;
-
-			// Mark the old buffer for disposal
-			if (oldBuffer != null) { obsoleteBuffers.Add(oldBuffer); }
+			BuildBitmapBuffer(newSize);
 		}
 
 		protected override byte GetAlphaAt(int x, int y)
@@ -86,13 +81,11 @@ namespace BrowserHost.Renderer.RenderHandlers
 				Length = length,
 			};
 
-			// Not using read/write locks because I'm a cowboy (and there seems to be a race cond in the locking mechanism)
-			bitmapBuffer.Write(buffer, length);
-			frameInfoBuffer.Write(ref frame);
+			WriteToBuffers(frame, buffer);
 
 			// Render is complete, clean up obsolete buffers
 			var obsoleteBuffers = this.obsoleteBuffers;
-			this.obsoleteBuffers = new ConcurrentBag<BufferReadWrite>();
+			this.obsoleteBuffers = new ConcurrentBag<SharedBuffer>();
 			foreach (var toDispose in obsoleteBuffers) { toDispose.Dispose(); }
 		}
 
@@ -106,10 +99,33 @@ namespace BrowserHost.Renderer.RenderHandlers
 			// TODO
 		}
 
-		private BufferReadWrite BuildBitmapBuffer(System.Drawing.Size size)
+		private void BuildBitmapBuffer(System.Drawing.Size size)
 		{
+			var oldBitmapBuffer = bitmapBuffer;
+
 			var bitmapBufferName = $"BrowserHostBitmapBuffer{Guid.NewGuid()}";
-			return new BufferReadWrite(bitmapBufferName, size.Width * size.Height * bytesPerPixel);
+			bitmapBuffer = new BufferReadWrite(bitmapBufferName, size.Width * size.Height * bytesPerPixel);
+
+			// Mark the old buffer for disposal
+			if (oldBitmapBuffer != null) { obsoleteBuffers.Add(oldBitmapBuffer); }
+		}
+
+		// There's a race condition wherein a resize from the plugin causes the browser to resize it's output buffer
+		// during writing it out to the IPC, which causes an access violation. Rather than trying to prevent the race like
+		// a sane developer, I'm just catching the error and nooping it - a dropped frame isn't a big issue.
+		[HandleProcessCorruptedStateExceptions]
+		private void WriteToBuffers(BitmapFrame frame, IntPtr buffer)
+		{
+			// Not using read/write locks because I'm a cowboy (and there seems to be a race cond in the locking mechanism)
+			try
+			{
+				bitmapBuffer.Write(buffer, frame.Length);
+				frameInfoBuffer.Write(ref frame);
+			}
+			catch (AccessViolationException e)
+			{
+				Console.WriteLine($"Error writing to buffer, nooping frame on {bitmapBuffer.Name}: {e.Message}");
+			}
 		}
 	}
 }
