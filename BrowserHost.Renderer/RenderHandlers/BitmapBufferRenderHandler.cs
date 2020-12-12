@@ -5,6 +5,7 @@ using SharedMemory;
 using System;
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 
 namespace BrowserHost.Renderer.RenderHandlers
 {
@@ -19,6 +20,10 @@ namespace BrowserHost.Renderer.RenderHandlers
 		private BufferReadWrite bitmapBuffer;
 		private CircularBuffer frameInfoBuffer;
 		private System.Drawing.Size size;
+
+		private bool popupVisible;
+		private Rect popupRect;
+		private byte[] popupBuffer;
 
 		private ConcurrentBag<SharedBuffer> obsoleteBuffers = new ConcurrentBag<SharedBuffer>();
 
@@ -66,14 +71,17 @@ namespace BrowserHost.Renderer.RenderHandlers
 
 		public override void OnPaint(PaintElementType type, Rect dirtyRect, IntPtr buffer, int width, int height)
 		{
-			// TODO: Popups
-			if (type != PaintElementType.View) { return; }
+			var length = bytesPerPixel * width * height;
+
+			// If this is a popup render, copy it across to the buffer.
+			if (type != PaintElementType.View) {
+				Marshal.Copy(buffer, popupBuffer, 0, length);
+				return;
+			}
 
 			// If the paint size does not match our buffer size, we're likely resizing and paint hasn't caught up. Noop.
 			if (width != size.Width && height != size.Height) { return; }
 
-			// TODO: Only write dirty rect
-			var length = bytesPerPixel * width * height;
 			var frame = new BitmapFrame()
 			{
 				Length = length,
@@ -85,7 +93,25 @@ namespace BrowserHost.Renderer.RenderHandlers
 				DirtyHeight = dirtyRect.Height,
 			};
 
-			WriteToBuffers(frame, buffer);
+			WriteToBuffers(frame, buffer, true);
+
+			// Intersect with dirty?
+			if (popupVisible)
+			{
+				var popupFrame = new BitmapFrame()
+				{
+					Length = length,
+					Width = width,
+					Height = height,
+					DirtyX = popupRect.X,
+					DirtyY = popupRect.Y,
+					DirtyWidth = popupRect.Width,
+					DirtyHeight = popupRect.Height,
+				};
+				var handle = GCHandle.Alloc(popupBuffer, GCHandleType.Pinned);
+				WriteToBuffers(popupFrame, handle.AddrOfPinnedObject(), false);
+				handle.Free();
+			}
 
 			// Render is complete, clean up obsolete buffers
 			var obsoleteBuffers = this.obsoleteBuffers;
@@ -95,12 +121,13 @@ namespace BrowserHost.Renderer.RenderHandlers
 
 		public override void OnPopupShow(bool show)
 		{
-			// TODO
+			popupVisible = show;
 		}
 
 		public override void OnPopupSize(Rect rect)
 		{
-			// TODO
+			popupRect = rect;
+			popupBuffer = new byte[rect.Width * rect.Height * bytesPerPixel];
 		}
 
 		private void BuildBitmapBuffer(System.Drawing.Size size)
@@ -118,12 +145,12 @@ namespace BrowserHost.Renderer.RenderHandlers
 		// during writing it out to the IPC, which causes an access violation. Rather than trying to prevent the race like
 		// a sane developer, I'm just catching the error and nooping it - a dropped frame isn't a big issue.
 		[HandleProcessCorruptedStateExceptions]
-		private void WriteToBuffers(BitmapFrame frame, IntPtr buffer)
+		private void WriteToBuffers(BitmapFrame frame, IntPtr buffer, bool offsetFromSource)
 		{
 			// Not using read/write locks because I'm a cowboy (and there seems to be a race cond in the locking mechanism)
 			try
 			{
-				WriteDirtyRect(frame, buffer);
+				WriteDirtyRect(frame, buffer, offsetFromSource);
 				frameInfoBuffer.Write(ref frame);
 			}
 			catch (AccessViolationException e)
@@ -132,14 +159,17 @@ namespace BrowserHost.Renderer.RenderHandlers
 			}
 		}
 
-		private void WriteDirtyRect(BitmapFrame frame, IntPtr buffer)
+		private void WriteDirtyRect(BitmapFrame frame, IntPtr buffer, bool offsetFromSource)
 		{
 			// Write each row as a dirty stripe
 			for (var row = frame.DirtyY; row < frame.DirtyY + frame.DirtyHeight; row++)
 			{
 				var position = (row * frame.Width * bytesPerPixel) + (frame.DirtyX * bytesPerPixel);
+				var bufferOffset = offsetFromSource
+					? position
+					: (row - frame.DirtyY - 1) * frame.DirtyWidth * bytesPerPixel;
 				bitmapBuffer.Write(
-					buffer + position,
+					buffer + bufferOffset,
 					frame.DirtyWidth * bytesPerPixel,
 					position
 				);
