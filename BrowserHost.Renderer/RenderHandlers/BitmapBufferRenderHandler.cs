@@ -123,12 +123,26 @@ namespace BrowserHost.Renderer.RenderHandlers
 			// Not using read/write locks because I'm a cowboy (and there seems to be a race cond in the locking mechanism)
 			try
 			{
-				bitmapBuffer.Write(buffer, frame.Length);
+				WriteDirtyRect(frame, buffer);
 				frameInfoBuffer.Write(ref frame);
 			}
 			catch (AccessViolationException e)
 			{
 				Console.WriteLine($"Error writing to buffer, nooping frame on {bitmapBuffer.Name}: {e.Message}");
+			}
+		}
+
+		private void WriteDirtyRect(BitmapFrame frame, IntPtr buffer)
+		{
+			// Write each row as a dirty stripe
+			for (var row = frame.DirtyY; row < frame.DirtyY + frame.DirtyHeight; row++)
+			{
+				var position = (row * frame.Width * bytesPerPixel) + (frame.DirtyX * bytesPerPixel);
+				bitmapBuffer.Write(
+					buffer + position,
+					frame.DirtyWidth * bytesPerPixel,
+					position
+				);
 			}
 		}
 	}

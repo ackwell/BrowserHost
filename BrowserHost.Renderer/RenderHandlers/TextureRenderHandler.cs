@@ -165,6 +165,7 @@ namespace BrowserHost.Renderer.RenderHandlers
 			// Only need to do composition + flush on primary texture
 			if (type != PaintElementType.View) { return; }
 
+			// Intersect with dirty?
 			if (popupVisible)
 			{
 				context.CopySubresourceRegion(popupTexture, 0, null, targetTexture, 0, popupRect.X, popupRect.Y);
