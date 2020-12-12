@@ -3,6 +3,7 @@ using CefSharp;
 using CefSharp.Structs;
 using SharedMemory;
 using System;
+using System.Collections.Concurrent;
 
 namespace BrowserHost.Renderer.RenderHandlers
 {
@@ -18,12 +19,13 @@ namespace BrowserHost.Renderer.RenderHandlers
 		private CircularBuffer frameInfoBuffer;
 		private System.Drawing.Size size;
 
+		private ConcurrentBag<BufferReadWrite> obsoleteBuffers = new ConcurrentBag<BufferReadWrite>();
+
 		public BitmapBufferRenderHandler(System.Drawing.Size size)
 		{
 			this.size = size;
 
-			var bitmapBufferName = $"BrowserHostBitmapBuffer{Guid.NewGuid()}";
-			bitmapBuffer = new BufferReadWrite(bitmapBufferName, size.Width * size.Height * bytesPerPixel);
+			bitmapBuffer = BuildBitmapBuffer(size);
 
 			// TODO: Sane size. Do we want to realloc buffers every resize or stone one or...?
 			var frameInfoBuffername = $"BrowserHostFrameInfoBuffer{Guid.NewGuid()}";
@@ -35,9 +37,25 @@ namespace BrowserHost.Renderer.RenderHandlers
 			frameInfoBuffer.Dispose();
 		}
 
-		public override void Resize(System.Drawing.Size size)
+		public override void Resize(System.Drawing.Size newSize)
 		{
-			// TODO
+			// If new size is same as current, noop
+			if (
+				newSize.Width == size.Width &&
+				newSize.Height == size.Height
+			) {
+				return;
+			}
+
+			var oldBuffer = bitmapBuffer;
+
+			// Build a new buffer & set up on instance
+			var newBuffer = BuildBitmapBuffer(newSize);
+			size = newSize;
+			bitmapBuffer = newBuffer;
+
+			// Mark the old buffer for disposal
+			if (oldBuffer != null) { obsoleteBuffers.Add(oldBuffer); }
 		}
 
 		protected override byte GetAlphaAt(int x, int y)
@@ -56,6 +74,9 @@ namespace BrowserHost.Renderer.RenderHandlers
 			// TODO: Popups
 			if (type != PaintElementType.View) { return; }
 
+			// If the paint size does not match our buffer size, we're likely resizing and paint hasn't caught up. Noop.
+			if (width != size.Width && height != size.Height) { return; }
+
 			// TODO: Only write dirty rect
 			var length = bytesPerPixel * width * height;
 			var frame = new BitmapFrame()
@@ -68,6 +89,11 @@ namespace BrowserHost.Renderer.RenderHandlers
 			// Not using read/write locks because I'm a cowboy (and there seems to be a race cond in the locking mechanism)
 			bitmapBuffer.Write(buffer, length);
 			frameInfoBuffer.Write(ref frame);
+
+			// Render is complete, clean up obsolete buffers
+			var obsoleteBuffers = this.obsoleteBuffers;
+			this.obsoleteBuffers = new ConcurrentBag<BufferReadWrite>();
+			foreach (var toDispose in obsoleteBuffers) { toDispose.Dispose(); }
 		}
 
 		public override void OnPopupShow(bool show)
@@ -78,6 +104,12 @@ namespace BrowserHost.Renderer.RenderHandlers
 		public override void OnPopupSize(Rect rect)
 		{
 			// TODO
+		}
+
+		private BufferReadWrite BuildBitmapBuffer(System.Drawing.Size size)
+		{
+			var bitmapBufferName = $"BrowserHostBitmapBuffer{Guid.NewGuid()}";
+			return new BufferReadWrite(bitmapBufferName, size.Width * size.Height * bytesPerPixel);
 		}
 	}
 }

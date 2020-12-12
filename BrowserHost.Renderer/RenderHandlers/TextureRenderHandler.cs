@@ -172,7 +172,7 @@ namespace BrowserHost.Renderer.RenderHandlers
 
 			context.Flush();
 
-			// Rendering is complete, clean up any obsolute textures textures
+			// Rendering is complete, clean up any obsolete textures
 			var textures = obsoluteTextures;
 			obsoluteTextures = new ConcurrentBag<D3D11.Texture2D>();
 			foreach (var texture in textures) { texture.Dispose(); }
