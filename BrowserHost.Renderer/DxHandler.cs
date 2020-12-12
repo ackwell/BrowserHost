@@ -9,7 +9,7 @@ namespace BrowserHost.Renderer
 	{
 		public static D3D11.Device Device { get; private set; }
 
-		public static void Initialise(long adapterLuid)
+		public static bool Initialise(long adapterLuid)
 		{
 			// Find the adapter matching the luid from the parent process
 			var factory = new DXGI.Factory1();
@@ -25,7 +25,8 @@ namespace BrowserHost.Renderer
 			if (gameAdapter == null)
 			{
 				var foundLuids = string.Join(",", factory.Adapters.Select(adapter => adapter.Description.Luid));
-				throw new Exception($"FATAL: Could not find adapter matching game adapter LUID {adapterLuid}. Found: {foundLuids}.");
+				Console.Error.WriteLine($"FATAL: Could not find adapter matching game adapter LUID {adapterLuid}. Found: {foundLuids}.");
+				return false;
 			}
 
 			// Use the adapter to build the device we'll use
@@ -35,6 +36,8 @@ namespace BrowserHost.Renderer
 #endif
 
 			Device = new D3D11.Device(gameAdapter, flags);
+
+			return true;
 		}
 
 		public static void Shutdown()

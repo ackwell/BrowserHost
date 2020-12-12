@@ -63,6 +63,7 @@ namespace BrowserHost.Plugin
 			settings.InlayNavigated += OnInlayNavigated;
 			settings.InlayDebugged += OnInlayDebugged;
 			settings.InlayRemoved += OnInlayRemoved;
+			settings.TransportChanged += OnTransportChanged;
 			settings.Initialise();
 		}
 
@@ -74,10 +75,10 @@ namespace BrowserHost.Plugin
 			return responses.FirstOrDefault(pair => pair.Item1);
 		}
 
-		private void OnInlayAdded(object sender, InlayConfiguration config)
+		private void OnInlayAdded(object sender, InlayConfiguration inlayConfig)
 		{
-			var inlay = new Inlay(renderProcess, config);
-			inlays.Add(inlay.Config.Guid, inlay);
+			var inlay = new Inlay(renderProcess, settings.Config, inlayConfig);
+			inlays.Add(inlayConfig.Guid, inlay);
 		}
 
 		private void OnInlayNavigated(object sender, InlayConfiguration config)
@@ -99,13 +100,31 @@ namespace BrowserHost.Plugin
 			inlay.Dispose();
 		}
 
+		private void OnTransportChanged(object sender, EventArgs unused)
+		{
+			// Transport has changed, need to rebuild all the inlay renderers
+			foreach (var inlay in inlays.Values)
+			{
+				inlay.InvalidateTransport();
+			}
+		}
+
 		private object HandleIpcRequest(object sender, UpstreamIpcRequest request)
 		{
 			switch (request)
 			{
+				case ReadyNotificationRequest readyNotificationRequest:
+				{
+					settings.SetAvailableTransports(readyNotificationRequest.availableTransports);
+					settings.HydrateInlays();
+					return null;
+				}
+
 				case SetCursorRequest setCursorRequest:
 				{
-					var inlay = inlays[setCursorRequest.Guid];
+					// TODO: Integrate ideas from Bridge re: SoC between widget and inlay
+					var inlay = inlays.Values.Where(inlay => inlay.RenderGuid == setCursorRequest.Guid).FirstOrDefault();
+					if (inlay == null) { return null; }
 					inlay.SetCursor(setCursorRequest.Cursor);
 					return null;
 				}

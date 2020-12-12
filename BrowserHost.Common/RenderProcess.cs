@@ -2,6 +2,8 @@
 
 namespace BrowserHost.Common
 {
+	// TODO: I should probably split this file up it's getting a bit silly
+
 	public class RenderProcessArguments
 	{
 		public int ParentPid;
@@ -23,6 +25,24 @@ namespace BrowserHost.Common
 		}
 	}
 
+	public struct BitmapFrame
+	{
+		public int Length;
+		public int Width;
+		public int Height;
+		public int DirtyX;
+		public int DirtyY;
+		public int DirtyWidth;
+		public int DirtyHeight;
+	}
+
+	public enum FrameTransportMode
+	{
+		None = 0,
+		SharedTexture = 1 << 0,
+		BitmapBuffer = 1 << 1,
+	}
+
 	#region Downstream IPC
 
 	[Serializable]
@@ -31,6 +51,7 @@ namespace BrowserHost.Common
 	[Serializable]
 	public class NewInlayRequest : DownstreamIpcRequest {
 		public Guid Guid;
+		public FrameTransportMode FrameTransportMode;
 		public string Url;
 		public int Width;
 		public int Height;
@@ -45,9 +66,19 @@ namespace BrowserHost.Common
 	}
 
 	[Serializable]
-	public class TextureHandleResponse
+	public class FrameTransportResponse { }
+
+	[Serializable]
+	public class TextureHandleResponse : FrameTransportResponse
 	{
 		public IntPtr TextureHandle;
+	}
+
+	[Serializable]
+	public class BitmapBufferResponse : FrameTransportResponse
+	{
+		public string BitmapBufferName;
+		public string FrameInfoBufferName;
 	}
 
 	[Serializable]
@@ -128,6 +159,12 @@ namespace BrowserHost.Common
 
 	[Serializable]
 	public class UpstreamIpcRequest { }
+
+	[Serializable]
+	public class ReadyNotificationRequest : UpstreamIpcRequest
+	{
+		public FrameTransportMode availableTransports;
+	}
 
 	// Akk, did you really write out every supported value of the cursor property despite both sides of the IPC not supporting the full set?
 	// Yes. Yes I did.

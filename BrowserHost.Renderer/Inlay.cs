@@ -1,4 +1,5 @@
 ﻿using BrowserHost.Common;
+using BrowserHost.Renderer.RenderHandlers;
 using CefSharp;
 using CefSharp.OffScreen;
 using System;
@@ -9,33 +10,22 @@ namespace BrowserHost.Renderer
 {
 	class Inlay : IDisposable
 	{
-		public IntPtr SharedTextureHandle => renderHandler.SharedTextureHandle;
-
-		public event EventHandler<Cursor> CursorChanged
-		{
-			add { renderHandler.CursorChanged += value; }
-			remove { renderHandler.CursorChanged -= value; }
-		}
-
 		private string url;
-		private Size size;
 
 		private ChromiumWebBrowser browser;
-		private TextureRenderHandler renderHandler;
+		public BaseRenderHandler RenderHandler;
 
-		public Inlay(string url, Size size)
+		public Inlay(string url, BaseRenderHandler renderHandler)
 		{
 			this.url = url;
-			this.size = size;
+			RenderHandler = renderHandler;
 		}
 
 		public void Initialise()
 		{
 			browser = new ChromiumWebBrowser(url, automaticallyCreateBrowser: false);
-
-			// Set up the DX texture-based rendering
-			renderHandler = new TextureRenderHandler(size);
-			browser.RenderHandler = renderHandler;
+			browser.RenderHandler = RenderHandler;
+			var size = RenderHandler.GetViewRect();
 
 			// General browser config
 			var windowInfo = new WindowInfo()
@@ -46,7 +36,7 @@ namespace BrowserHost.Renderer
 			windowInfo.SetAsWindowless(IntPtr.Zero);
 
 			// WindowInfo gets ignored sometimes, be super sure:
-			browser.BrowserInitialized += (sender, args) => { browser.Size = size; };
+			browser.BrowserInitialized += (sender, args) => { browser.Size = new Size(size.Width, size.Height); };
 
 			var browserSettings = new BrowserSettings()
 			{
@@ -63,7 +53,7 @@ namespace BrowserHost.Renderer
 		public void Dispose()
 		{
 			browser.RenderHandler = null;
-			renderHandler.Dispose();
+			RenderHandler.Dispose();
 			browser.Dispose();
 		}
 
@@ -95,7 +85,7 @@ namespace BrowserHost.Renderer
 			var cursorY = (int)request.Y;
 
 			// Update the renderer's concept of the mouse cursor
-			renderHandler.SetMousePosition(cursorX, cursorY);
+			RenderHandler.SetMousePosition(cursorX, cursorY);
 
 			var event_ = new MouseEvent(cursorX, cursorY, DecodeInputModifier(request.Modifier));
 
@@ -138,7 +128,7 @@ namespace BrowserHost.Renderer
 		public void Resize(Size size)
 		{
 			// Need to resize renderer first, the browser will check it (and hence the texture) when browser.Size is set.
-			renderHandler.Resize(size);
+			RenderHandler.Resize(size);
 			browser.Size = size;
 		}
 

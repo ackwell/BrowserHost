@@ -24,6 +24,7 @@
     <LangVersion>8.0</LangVersion>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>..\bin\Release\plugin\</OutputPath>
@@ -90,6 +91,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RenderProcess.cs" />
     <Compile Include="Settings.cs" />
+    <Compile Include="TextureHandlers\BitmapBufferTextureHandler.cs" />
+    <Compile Include="TextureHandlers\ITextureHandler.cs" />
+    <Compile Include="TextureHandlers\SharedTextureHandler.cs" />
     <Compile Include="WndProcHandler.cs" />
   </ItemGroup>
   <ItemGroup>
