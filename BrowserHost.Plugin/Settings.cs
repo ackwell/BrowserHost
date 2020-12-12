@@ -254,6 +254,13 @@ namespace BrowserHost.Plugin
 				{
 					SetActiveTransport(availableTransports[currentIndex]);
 				}
+
+				if (Config.FrameTransportMode == FrameTransportMode.BitmapBuffer)
+				{
+					ImGui.PushStyleColor(ImGuiCol.Text, 0xFF0000FF);
+					ImGui.TextWrapped("The bitmap buffer frame transport is a fallback, and should only be used if no other options work for you. It is not as stable as the shared texture option.");
+					ImGui.PopStyleColor();
+				}
 			}
 
 			return dirty;
