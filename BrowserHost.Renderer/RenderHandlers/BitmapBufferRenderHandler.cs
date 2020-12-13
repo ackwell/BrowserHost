@@ -62,8 +62,28 @@ namespace BrowserHost.Renderer.RenderHandlers
 
 		protected override byte GetAlphaAt(int x, int y)
 		{
-			// TODO
-			return 255;
+			var rowPitch = size.Width * bytesPerPixel;
+
+			var cursorAlphaOffset = 0
+				 + (Math.Min(Math.Max(x, 0), size.Width - 1) * bytesPerPixel)
+				 + (Math.Min(Math.Max(y, 0), size.Height - 1) * rowPitch)
+				 + 3;
+
+			byte alpha = 255;
+			try
+			{
+				bitmapBuffer.Read(ptr =>
+				{
+					alpha = Marshal.ReadByte(ptr, cursorAlphaOffset);
+				});
+			}
+			catch
+			{
+				Console.Error.WriteLine("Failed to read alpha value from bitmap buffer.");
+				alpha = 255;
+			}
+
+			return alpha;
 		}
 
 		public override Rect GetViewRect()
