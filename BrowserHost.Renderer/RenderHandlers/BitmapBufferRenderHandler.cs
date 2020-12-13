@@ -33,9 +33,11 @@ namespace BrowserHost.Renderer.RenderHandlers
 
 			BuildBitmapBuffer(size);
 
-			// TODO: Sane size.
-			var frameInfoBuffername = $"BrowserHostFrameInfoBuffer{Guid.NewGuid()}";
-			frameInfoBuffer = new CircularBuffer(frameInfoBuffername, 5, 1024 /* 1K */);
+			frameInfoBuffer = new CircularBuffer(
+				$"BrowserHostFrameInfoBuffer{Guid.NewGuid()}",
+				5,
+				Marshal.SizeOf(typeof(BitmapFrame))
+			);
 		}
 
 		public override void Dispose()
