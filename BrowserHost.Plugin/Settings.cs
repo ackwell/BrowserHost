@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace BrowserHost.Plugin
@@ -39,60 +40,91 @@ namespace BrowserHost.Plugin
 			this.pluginInterface = pluginInterface;
 
 			pluginInterface.UiBuilder.OnOpenConfigUi += (sender, args) => open = true;
-			pluginInterface.CommandManager.AddHandler("/pbrowser", new CommandInfo(HandleCommand)
-			{
-				HelpMessage = "Open BrowserHost configuration pane with '/pbrowser', or change the visibility of an inlay with " +
-				              "'/pbrowser [show,hide,toggle] <inlay name>'.",
-				ShowInHelp = true,
-			});
-		}
-
-		public void HandleCommand(string command, string arguments)
-		{
-			if (arguments == string.Empty)
-			{
-				// Just show the UI.
-				open = true;
-				return;
-			}
-
-			string[] args = arguments.Split(new [] {' '}, 2);
-
-			if (args.Length != 2)
-				// Invalid...
-				return;
-
-			InlayConfiguration targetInlay;
-			try
-			{
-				targetInlay = Config.Inlays.Find(i => i.Name == args[1]);
-			}
-			catch (ArgumentNullException)
-			{
-				// Invalid inlay name
-				return;
-			}
-
-			switch (args[0])
-			{
-				case "show":
-					targetInlay.Hidden = false;
-					break;
-				case "hide":
-					targetInlay.Hidden = true;
-					break;
-				case "toggle":
-					targetInlay.Hidden = !targetInlay.Hidden;
-					break;
-				default:
-					// Invalid action
-					break;
-			}
 		}
 
 		public void Initialise()
 		{
 			Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+		}
+
+		public void Dispose() { }
+
+		public void HandleConfigCommand(string rawArgs)
+		{
+			open = true;
+
+			// TODO: Add further config handling if required here.
+		}
+
+		public void HandleInlayCommand(string rawArgs)
+		{
+			var args = rawArgs.Split(null as char[], 3, StringSplitOptions.RemoveEmptyEntries);
+
+			// Ensure there's enough arguments
+			if (args.Length < 3)
+			{
+				pluginInterface.Framework.Gui.Chat.PrintError(
+					"Invalid inlay command. Supported syntax: '[inlayCommandName] [setting] [value]'");
+				return;
+			}
+
+			// Find the matching inlay config
+			var targetConfig = Config.Inlays.Find(inlay => GetInlayCommandName(inlay) == args[0]);
+			if (targetConfig == null)
+			{
+				pluginInterface.Framework.Gui.Chat.PrintError(
+					$"Unknown inlay '{args[0]}'.");
+				return;
+			}
+
+			switch (args[1])
+			{
+				case "url":
+					CommandSettingString(args[2], ref targetConfig.Url);
+					// TODO: This call is duped with imgui handling. DRY.
+					NavigateInlay(targetConfig);
+					break;
+				case "hidden":
+					CommandSettingBoolean(args[2], ref targetConfig.Hidden);
+					break;
+				case "locked":
+					CommandSettingBoolean(args[2], ref targetConfig.Locked);
+					break;
+				case "clickthrough":
+					CommandSettingBoolean(args[2], ref targetConfig.ClickThrough);
+					break;
+				default:
+					pluginInterface.Framework.Gui.Chat.PrintError(
+						$"Unknown setting '{args[1]}. Valid settings are: url,hidden,locked,clickthrough.");
+					return;
+			}
+
+			SaveSettings();
+		}
+
+		private void CommandSettingString(string value, ref string target)
+		{
+			target = value;
+		}
+
+		private void CommandSettingBoolean(string value, ref bool target)
+		{
+			switch (value)
+			{
+				case "on":
+					target = true;
+					break;
+				case "off":
+					target = false;
+					break;
+				case "toggle":
+					target = !target;
+					break;
+				default:
+					pluginInterface.Framework.Gui.Chat.PrintError(
+						$"Unknown boolean value '{value}. Valid values are: on,off,toggle.");
+					break;
+			}
 		}
 
 		public void SetAvailableTransports(FrameTransportMode transports)
@@ -119,8 +151,6 @@ namespace BrowserHost.Plugin
 				InlayAdded?.Invoke(this, inlayConfig);
 			}
 		}
-
-		public void Dispose() { }
 
 		private InlayConfiguration AddNewInlay()
 		{
@@ -174,6 +204,11 @@ namespace BrowserHost.Plugin
 			saveDebounceTimer?.Dispose();
 			saveDebounceTimer = null;
 			pluginInterface.SavePluginConfig(Config);
+		}
+
+		private string GetInlayCommandName(InlayConfiguration inlayConfig)
+		{
+			return Regex.Replace(inlayConfig.Name, @"\s+", "").ToLower();
 		}
 
 		public void Render()
@@ -277,7 +312,23 @@ namespace BrowserHost.Plugin
 
 			ImGui.Text("Select an inlay on the left to edit its settings.");
 
-			if (ImGui.CollapsingHeader("Advanced settings"))
+			if (ImGui.CollapsingHeader("Command Help", ImGuiTreeNodeFlags.DefaultOpen))
+			{
+				// TODO: If this ever gets more than a few options, should probably colocate help with the defintion. Attributes?
+				ImGui.Text("/bh config");
+				ImGui.Text("Open this configuration window.");
+				ImGui.Dummy(new Vector2(0, 5));
+				ImGui.Text("/bh inlay [inlayCommandName] [setting] [value]");
+				ImGui.TextWrapped(
+					"Change a setting for an inlay.\n" +
+					"\tinlayCommandName: The inlay to edit. Use the 'Command Name' shown in its config.\n" +
+					"\tsetting: Value to change. Accepted settings are:\n" +
+					"\t\turl: string\n\t\thidden: boolean\n\t\tlocked: boolean\n\t\tclickthrough: boolean\n" +
+					"\tvalue: Value to set for the setting. Accepted values are:\n" +
+					"\t\tstring: any string value\n\t\tboolean: on, off, toggle");
+			}
+
+			if (ImGui.CollapsingHeader("Advanced Settings"))
 			{
 				var options = availableTransports.Select(transport => transport.ToString());
 				var currentIndex = availableTransports.IndexOf(Config.FrameTransportMode);
@@ -317,6 +368,11 @@ namespace BrowserHost.Plugin
 			ImGui.PushID(inlayConfig.Guid.ToString());
 
 			dirty |= ImGui.InputText("Name", ref inlayConfig.Name, 100);
+
+			ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
+			var commandName = GetInlayCommandName(inlayConfig);
+			ImGui.InputText("Command Name", ref commandName, 100);
+			ImGui.PopStyleVar();
 
 			dirty |= ImGui.InputText("URL", ref inlayConfig.Url, 1000);
 			if (ImGui.IsItemDeactivatedAfterEdit()) { NavigateInlay(inlayConfig); }

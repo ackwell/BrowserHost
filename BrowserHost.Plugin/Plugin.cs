@@ -1,4 +1,5 @@
 ﻿using BrowserHost.Common;
+using Dalamud.Game.Command;
 using Dalamud.Plugin;
 using ImGuiNET;
 using System;
@@ -14,6 +15,8 @@ namespace BrowserHost.Plugin
 	public class Plugin : IDalamudPlugin
 	{
 		public string Name => "Browser Host";
+
+		private static string COMMAND = "/bh";
 
 		private DalamudPluginInterface pluginInterface;
 		private string pluginDir;
@@ -37,11 +40,11 @@ namespace BrowserHost.Plugin
 			pluginInterface.UiBuilder.OnBuildUi += Render;
 
 			dependencyManager = new DependencyManager(pluginDir);
-			dependencyManager.DependenciesReady += (sender, args) => StartRendering();
+			dependencyManager.DependenciesReady += (sender, args) => DependenciesReady();
 			dependencyManager.Initialise();
 		}
 
-		private void StartRendering()
+		private void DependenciesReady()
 		{
 			// Spin up DX handling from the plugin interface
 			DxHandler.Initialise(pluginInterface);
@@ -65,6 +68,13 @@ namespace BrowserHost.Plugin
 			settings.InlayRemoved += OnInlayRemoved;
 			settings.TransportChanged += OnTransportChanged;
 			settings.Initialise();
+
+			// Hook up the main BH command
+			pluginInterface.CommandManager.AddHandler(COMMAND, new CommandInfo(HandleCommand)
+			{
+				HelpMessage = "Control BrowserHost from the chat line! Type '/bh config' or open the settings for more info.",
+				ShowInHelp = true,
+			});
 		}
 
 		private (bool, long) OnWndProc(WindowsMessage msg, ulong wParam, long lParam)
@@ -146,6 +156,36 @@ namespace BrowserHost.Plugin
 			ImGui.PopStyleVar();
 		}
 
+		private void HandleCommand(string command, string rawArgs)
+		{
+			// Docs complain about perf of multiple splits.
+			// I'm not convinced this is a sufficiently perf-critical path to care.
+			var args = rawArgs.Split(null as char[], 2, StringSplitOptions.RemoveEmptyEntries);
+
+			if (args.Length == 0)
+			{
+				pluginInterface.Framework.Gui.Chat.PrintError(
+					"No subcommand specified. Valid subcommands are: config,inlay.");
+				return;
+			}
+
+			var subcommandArgs = args.Length > 1 ? args[1] : "";
+
+			switch (args[0])
+			{
+				case "config":
+					settings.HandleConfigCommand(subcommandArgs);
+					break;
+				case "inlay":
+					settings.HandleInlayCommand(subcommandArgs);
+					break;
+				default:
+					pluginInterface.Framework.Gui.Chat.PrintError(
+						$"Unknown subcommand '{args[0]}'. Valid subcommands are: config,inlay.");
+					break;
+			}
+		}
+
 		public void Dispose()
 		{
 			foreach (var inlay in inlays.Values) { inlay.Dispose(); }
@@ -154,6 +194,8 @@ namespace BrowserHost.Plugin
 			renderProcess?.Dispose();
 
 			settings?.Dispose();
+
+			pluginInterface.CommandManager.RemoveHandler(COMMAND);
 
 			WndProcHandler.Shutdown();
 			DxHandler.Shutdown();
