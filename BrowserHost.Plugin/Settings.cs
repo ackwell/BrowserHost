@@ -1,5 +1,6 @@
 ﻿using BrowserHost.Common;
 using Dalamud.Game.Command;
+using Dalamud.Game.Internal.Gui;
 using Dalamud.Interface;
 using Dalamud.Plugin;
 using ImGuiNET;
@@ -8,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace BrowserHost.Plugin
 {
@@ -39,11 +41,55 @@ namespace BrowserHost.Plugin
 			this.pluginInterface = pluginInterface;
 
 			pluginInterface.UiBuilder.OnOpenConfigUi += (sender, args) => open = true;
-			pluginInterface.CommandManager.AddHandler("/pbrowser", new CommandInfo((command, arguments) => open = true)
+			pluginInterface.CommandManager.AddHandler("/pbrowser", new CommandInfo(HandleCommand)
 			{
-				HelpMessage = "Open BrowserHost configuration pane.",
+				HelpMessage = "Open BrowserHost configuration pane with '/pbrowser', or change the visibility of an inlay with " +
+				              "'/pbrowser [show,hide,toggle] <inlay name>'.",
 				ShowInHelp = true,
 			});
+		}
+
+		public void HandleCommand(string command, string arguments)
+		{
+			if (arguments == string.Empty)
+			{
+				// Just show the UI.
+				open = true;
+				return;
+			}
+
+			string[] args = arguments.Split(new [] {' '}, 2);
+
+			if (args.Length != 2)
+				// Invalid...
+				return;
+
+			InlayConfiguration targetInlay;
+			try
+			{
+				targetInlay = config.Inlays.Find(i => i.Name == args[1]);
+			}
+			catch (ArgumentNullException)
+			{
+				// Invalid inlay name
+				return;
+			}
+
+			switch (args[0])
+			{
+				case "show":
+					targetInlay.Visible = true;
+					break;
+				case "hide":
+					targetInlay.Visible = false;
+					break;
+				case "toggle":
+					targetInlay.Visible = !targetInlay.Visible;
+					break;
+				default:
+					// Invalid action
+					break;
+			}
 		}
 
 		public void Initialise()
@@ -286,6 +332,10 @@ namespace BrowserHost.Plugin
 			ImGui.SameLine();
 			dirty |= ImGui.Checkbox("Click Through", ref inlayConfig.ClickThrough);
 			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from intecepting any mouse events."); }
+
+			ImGui.SameLine();
+			dirty |= ImGui.Checkbox("Visible", ref inlayConfig.Visible);
+			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Show the inlay."); }
 
 			if (ImGui.Button("Reload")) { ReloadInlay(inlayConfig); }
 
