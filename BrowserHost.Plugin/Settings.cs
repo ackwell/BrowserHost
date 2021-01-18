@@ -67,7 +67,7 @@ namespace BrowserHost.Plugin
 			InlayConfiguration targetInlay;
 			try
 			{
-				targetInlay = config.Inlays.Find(i => i.Name == args[1]);
+				targetInlay = Config.Inlays.Find(i => i.Name == args[1]);
 			}
 			catch (ArgumentNullException)
 			{

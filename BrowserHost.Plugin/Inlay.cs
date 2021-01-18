@@ -130,8 +130,10 @@ namespace BrowserHost.Plugin
 
 		public void Render()
 		{
-			if (!Config.Visible)
+			if (!inlayConfig.Visible)
+			{
 				return;
+			}
 
 			ImGui.SetNextWindowSize(new Vector2(640, 480), ImGuiCond.FirstUseEver);
 			ImGui.Begin($"{inlayConfig.Name}###{inlayConfig.Guid}", GetWindowFlags());
