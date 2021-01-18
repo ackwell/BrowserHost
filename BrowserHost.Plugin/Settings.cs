@@ -1,6 +1,5 @@
 ﻿using BrowserHost.Common;
 using Dalamud.Game.Command;
-using Dalamud.Game.Internal.Gui;
 using Dalamud.Interface;
 using Dalamud.Plugin;
 using ImGuiNET;
@@ -9,7 +8,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace BrowserHost.Plugin
 {
@@ -78,13 +76,13 @@ namespace BrowserHost.Plugin
 			switch (args[0])
 			{
 				case "show":
-					targetInlay.Visible = true;
+					targetInlay.Hidden = false;
 					break;
 				case "hide":
-					targetInlay.Visible = false;
+					targetInlay.Hidden = true;
 					break;
 				case "toggle":
-					targetInlay.Visible = !targetInlay.Visible;
+					targetInlay.Hidden = !targetInlay.Hidden;
 					break;
 				default:
 					// Invalid action
@@ -334,7 +332,7 @@ namespace BrowserHost.Plugin
 			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from intecepting any mouse events."); }
 
 			ImGui.SameLine();
-			dirty |= ImGui.Checkbox("Visible", ref inlayConfig.Visible);
+			dirty |= ImGui.Checkbox("Hidden", ref inlayConfig.Hidden);
 			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Show the inlay."); }
 
 			if (ImGui.Button("Reload")) { ReloadInlay(inlayConfig); }

@@ -20,7 +20,7 @@ namespace BrowserHost.Plugin
 		public Guid Guid;
 		public string Name;
 		public string Url;
-		public bool Visible;
+		public bool Hidden;
 		public bool Locked;
 		public bool ClickThrough;
 	}

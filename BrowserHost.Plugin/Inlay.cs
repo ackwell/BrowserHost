@@ -130,7 +130,7 @@ namespace BrowserHost.Plugin
 
 		public void Render()
 		{
-			if (!inlayConfig.Visible)
+			if (inlayConfig.Hidden)
 			{
 				return;
 			}
