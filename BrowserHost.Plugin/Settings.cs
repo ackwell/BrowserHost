@@ -1,12 +1,15 @@
-﻿using Dalamud.Game.Command;
+﻿using BrowserHost.Common;
+using Dalamud.Game.Command;
+using Dalamud.Game.Internal.Gui;
 using Dalamud.Interface;
 using Dalamud.Plugin;
 using ImGuiNET;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
-using Dalamud.Game.Internal.Gui;
 
 namespace BrowserHost.Plugin
 {
@@ -16,16 +19,19 @@ namespace BrowserHost.Plugin
 		public event EventHandler<InlayConfiguration> InlayNavigated;
 		public event EventHandler<InlayConfiguration> InlayDebugged;
 		public event EventHandler<InlayConfiguration> InlayRemoved;
+		public event EventHandler TransportChanged;
+
+		public Configuration Config;
 
 		private DalamudPluginInterface pluginInterface;
-
-		private Configuration config;
 
 #if DEBUG
 		private bool open = true;
 #else
 		private bool open = false;
 #endif
+
+		private List<FrameTransportMode> availableTransports = new List<FrameTransportMode>();
 
 		InlayConfiguration selectedInlay = null;
 		private Timer saveDebounceTimer;
@@ -88,17 +94,32 @@ namespace BrowserHost.Plugin
 
 		public void Initialise()
 		{
-			// Running this in a thread to avoid blocking the plugin init with potentially expensive stuff
-			Task.Run(() =>
-			{
-				config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+			Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+		}
 
-				// Hydrate any inlays in the config
-				foreach (var inlayConfig in config.Inlays)
-				{
-					InlayAdded?.Invoke(this, inlayConfig);
-				}
-			});
+		public void SetAvailableTransports(FrameTransportMode transports)
+		{
+			// Decode bit flags to array for easier ui crap
+			availableTransports = Enum.GetValues(typeof(FrameTransportMode))
+				.Cast<FrameTransportMode>()
+				.Where(transport => transport != FrameTransportMode.None && transports.HasFlag(transport))
+				.ToList();
+
+			// If the configured transport isn't available, pick the first so we don't end up in a weird spot.
+			// NOTE: Might be nice to avoid saving this to disc - a one-off failure may cause a save of full fallback mode.
+			if (availableTransports.Count > 0 && !availableTransports.Contains(Config.FrameTransportMode))
+			{
+				SetActiveTransport(availableTransports[0]);
+			}
+		}
+
+		public void HydrateInlays()
+		{
+			// Hydrate any inlays in the config
+			foreach (var inlayConfig in Config.Inlays)
+			{
+				InlayAdded?.Invoke(this, inlayConfig);
+			}
 		}
 
 		public void Dispose() { }
@@ -111,7 +132,7 @@ namespace BrowserHost.Plugin
 				Name = "New inlay",
 				Url = "about:blank",
 			};
-			config.Inlays.Add(inlayConfig);
+			Config.Inlays.Add(inlayConfig);
 			InlayAdded?.Invoke(this, inlayConfig);
 			SaveSettings();
 
@@ -134,8 +155,14 @@ namespace BrowserHost.Plugin
 		private void RemoveInlay(InlayConfiguration inlayConfig)
 		{
 			InlayRemoved?.Invoke(this, inlayConfig);
-			config.Inlays.Remove(inlayConfig);
+			Config.Inlays.Remove(inlayConfig);
 			SaveSettings();
+		}
+
+		private void SetActiveTransport(FrameTransportMode transport)
+		{
+			Config.FrameTransportMode = transport;
+			TransportChanged?.Invoke(this, null);
 		}
 
 		private void DebouncedSaveSettings()
@@ -148,12 +175,12 @@ namespace BrowserHost.Plugin
 		{
 			saveDebounceTimer?.Dispose();
 			saveDebounceTimer = null;
-			pluginInterface.SavePluginConfig(config);
+			pluginInterface.SavePluginConfig(Config);
 		}
 
 		public void Render()
 		{
-			if (!open || config == null) { return; }
+			if (!open || Config == null) { return; }
 
 			// Primary window container
 			ImGui.SetNextWindowSizeConstraints(new Vector2(400, 300), new Vector2(9001, 9001));
@@ -171,7 +198,7 @@ namespace BrowserHost.Plugin
 			ImGui.BeginChild("details");
 			if (selectedInlay == null)
 			{
-				ImGui.Text("Select an inlay on the left to edit its settings.");
+				dirty |= RenderGeneralSettings();
 			}
 			else
 			{
@@ -190,10 +217,21 @@ namespace BrowserHost.Plugin
 			ImGui.BeginGroup();
 			ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, 0));
 
+			var selectorWidth = 100;
+			ImGui.BeginChild("panes", new Vector2(selectorWidth, -ImGui.GetFrameHeightWithSpacing()), true);
+
+			// General settings
+			if (ImGui.Selectable($"General", selectedInlay == null))
+			{
+				selectedInlay = null;
+			}
+
 			// Inlay selector list
-			ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
-			ImGui.BeginChild("inlays", new Vector2(100, -ImGui.GetFrameHeightWithSpacing()), true);
-			foreach (var inlayConfig in config.Inlays)
+			ImGui.Dummy(new Vector2(0, 5));
+			ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
+			ImGui.Text("- Inlays -");
+			ImGui.PopStyleVar();
+			foreach (var inlayConfig in Config.Inlays)
 			{
 				if (ImGui.Selectable($"{inlayConfig.Name}##{inlayConfig.Guid}", selectedInlay == inlayConfig))
 				{
@@ -201,13 +239,13 @@ namespace BrowserHost.Plugin
 				}
 			}
 			ImGui.EndChild();
-			ImGui.PopStyleVar();
 
 			// Selector controls
 			ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 0);
 			ImGui.PushFont(UiBuilder.IconFont);
 
-			if (ImGui.Button(FontAwesomeIcon.Plus.ToIconString(), new Vector2(50, 0)))
+			var buttonWidth = selectorWidth / 2;
+			if (ImGui.Button(FontAwesomeIcon.Plus.ToIconString(), new Vector2(buttonWidth, 0)))
 			{
 				selectedInlay = AddNewInlay();
 			}
@@ -215,7 +253,7 @@ namespace BrowserHost.Plugin
 			ImGui.SameLine();
 			if (selectedInlay != null)
 			{
-				if (ImGui.Button(FontAwesomeIcon.Trash.ToIconString(), new Vector2(50, 0)))
+				if (ImGui.Button(FontAwesomeIcon.Trash.ToIconString(), new Vector2(buttonWidth, 0)))
 				{
 					var toRemove = selectedInlay;
 					selectedInlay = null;
@@ -225,7 +263,7 @@ namespace BrowserHost.Plugin
 			else
 			{
 				ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
-				ImGui.Button(FontAwesomeIcon.Trash.ToIconString(), new Vector2(50, 0));
+				ImGui.Button(FontAwesomeIcon.Trash.ToIconString(), new Vector2(buttonWidth, 0));
 				ImGui.PopStyleVar();
 			}
 
@@ -233,6 +271,45 @@ namespace BrowserHost.Plugin
 			ImGui.PopStyleVar(2);
 
 			ImGui.EndGroup();
+		}
+
+		private bool RenderGeneralSettings()
+		{
+			var dirty = false;
+
+			ImGui.Text("Select an inlay on the left to edit its settings.");
+
+			if (ImGui.CollapsingHeader("Advanced settings"))
+			{
+				var options = availableTransports.Select(transport => transport.ToString());
+				var currentIndex = availableTransports.IndexOf(Config.FrameTransportMode);
+
+				if (availableTransports.Count == 0)
+				{
+					options = options.Append("Initialising...");
+					currentIndex = 0;
+				}
+
+				if (options.Count() <= 1) { ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f); }
+				var transportChanged =  ImGui.Combo("Frame transport", ref currentIndex, options.ToArray(), options.Count());
+				if (options.Count() <= 1) { ImGui.PopStyleVar(); }
+
+				// TODO: Flipping this should probably try to rebuild existing inlays
+				dirty |= transportChanged;
+				if (transportChanged)
+				{
+					SetActiveTransport(availableTransports[currentIndex]);
+				}
+
+				if (Config.FrameTransportMode == FrameTransportMode.BitmapBuffer)
+				{
+					ImGui.PushStyleColor(ImGuiCol.Text, 0xFF0000FF);
+					ImGui.TextWrapped("The bitmap buffer frame transport is a fallback, and should only be used if no other options work for you. It is not as stable as the shared texture option.");
+					ImGui.PopStyleColor();
+				}
+			}
+
+			return dirty;
 		}
 
 		private bool RenderInlaySettings(InlayConfiguration inlayConfig)

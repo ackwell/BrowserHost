@@ -1,4 +1,5 @@
 ﻿using BrowserHost.Common;
+using BrowserHost.Renderer.RenderHandlers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -50,10 +51,21 @@ namespace BrowserHost.Renderer
 			AppDomain.CurrentDomain.FirstChanceException += (obj, e) => Console.Error.WriteLine(e.Exception.ToString());
 #endif
 
-			DxHandler.Initialise(args.DxgiAdapterLuid);
+			var dxRunning = DxHandler.Initialise(args.DxgiAdapterLuid);
 			CefHandler.Initialise(cefAssemblyDir, args.CefCacheDir);
 
 			ipcBuffer = new IpcBuffer<DownstreamIpcRequest, UpstreamIpcRequest>(args.IpcChannelName, HandleIpcRequest);
+
+			Console.WriteLine("Notifiying on ready state.");
+
+			// We always support bitmap buffer transport
+			var availableTransports = FrameTransportMode.BitmapBuffer;
+			if (dxRunning) { availableTransports |= FrameTransportMode.SharedTexture; }
+
+			ipcBuffer.RemoteRequest<object>(new ReadyNotificationRequest()
+			{
+				availableTransports = availableTransports,
+			});
 
 			Console.WriteLine("Waiting...");
 
@@ -87,29 +99,15 @@ namespace BrowserHost.Renderer
 		{
 			switch (request)
 			{
-				case NewInlayRequest newInlayRequest:
-				{
-					// TODO: Move bulk of this into a method
-					var inlay = new Inlay(newInlayRequest.Url, new Size(newInlayRequest.Width, newInlayRequest.Height));
-					inlay.Initialise();
-					inlays.Add(newInlayRequest.Guid, inlay);
-					inlay.CursorChanged += (sender, cursor) =>
-					{
-						ipcBuffer.RemoteRequest<object>(new SetCursorRequest()
-						{
-							Guid = newInlayRequest.Guid,
-							Cursor = cursor
-						});
-					};
-					return new TextureHandleResponse() { TextureHandle = inlay.SharedTextureHandle };
-				}
+				case NewInlayRequest newInlayRequest: return OnNewInlayRequest(newInlayRequest);
 
 				case ResizeInlayRequest resizeInlayRequest:
 				{
 					var inlay = inlays[resizeInlayRequest.Guid];
 					if (inlay == null) { return null; }
 					inlay.Resize(new Size(resizeInlayRequest.Width, resizeInlayRequest.Height));
-					return new TextureHandleResponse() { TextureHandle = inlay.SharedTextureHandle };
+
+					return BuildRenderHandlerResponse(inlay.RenderHandler);
 				}
 
 				case NavigateInlayRequest navigateInlayRequest:
@@ -151,6 +149,46 @@ namespace BrowserHost.Renderer
 				default:
 					throw new Exception($"Unknown IPC request type {request.GetType().Name} received.");
 			}
+		}
+
+		private static object OnNewInlayRequest(NewInlayRequest request)
+		{
+			var size = new Size(request.Width, request.Height);
+			BaseRenderHandler renderHandler = request.FrameTransportMode switch
+			{
+				FrameTransportMode.SharedTexture => new TextureRenderHandler(size),
+				FrameTransportMode.BitmapBuffer => new BitmapBufferRenderHandler(size),
+				_ => throw new Exception($"Unhandled frame transport mode {request.FrameTransportMode}"),
+			};
+
+			var inlay = new Inlay(request.Url, renderHandler);
+			inlay.Initialise();
+			inlays.Add(request.Guid, inlay);
+
+			renderHandler.CursorChanged += (sender, cursor) =>
+			{
+				ipcBuffer.RemoteRequest<object>(new SetCursorRequest()
+				{
+					Guid = request.Guid,
+					Cursor = cursor
+				});
+			};
+
+			return BuildRenderHandlerResponse(renderHandler);
+		}
+
+		private static object BuildRenderHandlerResponse(BaseRenderHandler renderHandler)
+		{
+			return renderHandler switch
+			{
+				TextureRenderHandler textureRenderHandler => new TextureHandleResponse() { TextureHandle = textureRenderHandler.SharedTextureHandle },
+				BitmapBufferRenderHandler bitmapBufferRenderHandler => new BitmapBufferResponse()
+				{
+					BitmapBufferName = bitmapBufferRenderHandler.BitmapBufferName,
+					FrameInfoBufferName = bitmapBufferRenderHandler.FrameInfoBufferName,
+				},
+				_ => throw new Exception($"Unhandled render handler type {renderHandler.GetType().Name}")
+			};
 		}
 
 		private static Assembly CustomAssemblyResolver(object sender, ResolveEventArgs args)
