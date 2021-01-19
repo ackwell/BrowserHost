@@ -132,6 +132,7 @@ namespace BrowserHost.Plugin
 		{
 			if (inlayConfig.Hidden)
 			{
+				mouseInWindow = false;
 				return;
 			}
 

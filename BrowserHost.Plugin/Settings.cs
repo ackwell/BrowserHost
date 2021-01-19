@@ -389,7 +389,7 @@ namespace BrowserHost.Plugin
 
 			ImGui.SameLine();
 			dirty |= ImGui.Checkbox("Hidden", ref inlayConfig.Hidden);
-			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Show the inlay."); }
+			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Hide the inlay. This does not stop the inlay from executing, only from being displayed."); }
 
 			if (ImGui.Button("Reload")) { ReloadInlay(inlayConfig); }
 
