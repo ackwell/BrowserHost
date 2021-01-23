@@ -80,9 +80,9 @@ namespace BrowserHost.Plugin
 			// ImGui's pervue to defocus inlays
 			if (msg == WindowsMessage.WM_LBUTTONDOWN) { windowFocused = mouseInWindow && captureCursor; }
 
-			// Bail if we're not focused
-			// TODO: Revisit this for UI stuff, might not hold
-			if (!windowFocused) { return (false, 0); }
+			// Bail if we're not focused or we're typethrough
+			// TODO: Revisit the focus check for UI stuff, might not hold
+			if (!windowFocused || inlayConfig.TypeThrough) { return (false, 0); }
 
 			KeyEventType? eventType = msg switch
 			{

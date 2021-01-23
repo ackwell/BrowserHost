@@ -22,6 +22,7 @@ namespace BrowserHost.Plugin
 		public string Url;
 		public bool Hidden;
 		public bool Locked;
+		public bool TypeThrough;
 		public bool ClickThrough;
 	}
 }

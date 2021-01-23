@@ -84,11 +84,14 @@ namespace BrowserHost.Plugin
 					// TODO: This call is duped with imgui handling. DRY.
 					NavigateInlay(targetConfig);
 					break;
+				case "locked":
+					CommandSettingBoolean(args[2], ref targetConfig.Locked);
+					break;
 				case "hidden":
 					CommandSettingBoolean(args[2], ref targetConfig.Hidden);
 					break;
-				case "locked":
-					CommandSettingBoolean(args[2], ref targetConfig.Locked);
+				case "typethrough":
+					CommandSettingBoolean(args[2], ref targetConfig.TypeThrough);
 					break;
 				case "clickthrough":
 					CommandSettingBoolean(args[2], ref targetConfig.ClickThrough);
@@ -323,7 +326,11 @@ namespace BrowserHost.Plugin
 					"Change a setting for an inlay.\n" +
 					"\tinlayCommandName: The inlay to edit. Use the 'Command Name' shown in its config.\n" +
 					"\tsetting: Value to change. Accepted settings are:\n" +
-					"\t\turl: string\n\t\thidden: boolean\n\t\tlocked: boolean\n\t\tclickthrough: boolean\n" +
+					"\t\turl: string\n" +
+					"\t\tlocked: boolean\n" +
+					"\t\thidden: boolean\n" +
+					"\t\ttypethrough: boolean\n" +
+					"\t\tclickthrough: boolean\n" +
 					"\tvalue: Value to set for the setting. Accepted values are:\n" +
 					"\t\tstring: any string value\n\t\tboolean: on, off, toggle");
 			}
@@ -377,19 +384,32 @@ namespace BrowserHost.Plugin
 			dirty |= ImGui.InputText("URL", ref inlayConfig.Url, 1000);
 			if (ImGui.IsItemDeactivatedAfterEdit()) { NavigateInlay(inlayConfig); }
 
+			ImGui.SetNextItemWidth(100);
+			ImGui.Columns(2, "boolInlayOptions", false);
+
 			var true_ = true;
 			if (inlayConfig.ClickThrough) { ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f); }
 			dirty |= ImGui.Checkbox("Locked", ref inlayConfig.ClickThrough ? ref true_ : ref inlayConfig.Locked);
 			if (inlayConfig.ClickThrough) { ImGui.PopStyleVar(); }
 			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from being resized or moved. This is implicitly set by Click Through."); }
+			ImGui.NextColumn();
 
-			ImGui.SameLine();
-			dirty |= ImGui.Checkbox("Click Through", ref inlayConfig.ClickThrough);
-			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from intecepting any mouse events."); }
-
-			ImGui.SameLine();
 			dirty |= ImGui.Checkbox("Hidden", ref inlayConfig.Hidden);
 			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Hide the inlay. This does not stop the inlay from executing, only from being displayed."); }
+			ImGui.NextColumn();
+
+
+			if (inlayConfig.ClickThrough) { ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f); }
+			dirty |= ImGui.Checkbox("Type Through", ref inlayConfig.ClickThrough ? ref true_ : ref inlayConfig.TypeThrough);
+			if (inlayConfig.ClickThrough) { ImGui.PopStyleVar(); }
+			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from intercepting any keyboard events. Implicitly set by Click Through."); }
+			ImGui.NextColumn();
+
+			dirty |= ImGui.Checkbox("Click Through", ref inlayConfig.ClickThrough);
+			if (ImGui.IsItemHovered()) { ImGui.SetTooltip("Prevent the inlay from intercepting any mouse events. Implicitly sets Locked and Type Through."); }
+			ImGui.NextColumn();
+
+			ImGui.Columns(1);
 
 			if (ImGui.Button("Reload")) { ReloadInlay(inlayConfig); }
 
