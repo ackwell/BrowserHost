@@ -39,17 +39,17 @@
   <ItemGroup>
     <Reference Include="Dalamud">
       <HintPath Condition="Exists('..\..\Dalamud\Dalamud\bin\Debug')">..\..\Dalamud\Dalamud\bin\Debug\Dalamud.dll</HintPath>
-      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1')">$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1\Dalamud.dll</HintPath>
+      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\dev')">$(AppData)\XIVLauncher\addon\Hooks\dev\Dalamud.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ImGui.NET">
       <HintPath Condition="Exists('..\..\Dalamud\Dalamud\bin\Debug')">..\..\Dalamud\Dalamud\bin\Debug\ImGui.NET.dll</HintPath>
-      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1')">$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1\ImGui.NET.dll</HintPath>
+      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\dev')">$(AppData)\XIVLauncher\addon\Hooks\dev\ImGui.NET.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ImGuiScene">
       <HintPath Condition="Exists('..\..\Dalamud\Dalamud\bin\Debug')">..\..\Dalamud\Dalamud\bin\Debug\ImGuiScene.dll</HintPath>
-      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1')">$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1\ImGuiScene.dll</HintPath>
+      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\dev')">$(AppData)\XIVLauncher\addon\Hooks\dev\ImGuiScene.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SharedMemory, Version=2.2.3.0, Culture=neutral, processorArchitecture=MSIL">
@@ -57,17 +57,17 @@
     </Reference>
     <Reference Include="SharpDX">
       <HintPath Condition="Exists('..\..\Dalamud\Dalamud\bin\Debug')">..\..\Dalamud\Dalamud\bin\Debug\SharpDX.dll</HintPath>
-      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1')">$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1\SharpDX.dll</HintPath>
+      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\dev')">$(AppData)\XIVLauncher\addon\Hooks\dev\SharpDX.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SharpDX.Direct3D11">
       <HintPath Condition="Exists('..\..\Dalamud\Dalamud\bin\Debug')">..\..\Dalamud\Dalamud\bin\Debug\SharpDX.Direct3D11.dll</HintPath>
-      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1')">$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1\SharpDX.Direct3D11.dll</HintPath>
+      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\dev')">$(AppData)\XIVLauncher\addon\Hooks\dev\SharpDX.Direct3D11.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SharpDX.DXGI">
       <HintPath Condition="Exists('..\..\Dalamud\Dalamud\bin\Debug')">..\..\Dalamud\Dalamud\bin\Debug\SharpDX.DXGI.dll</HintPath>
-      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1')">$(AppData)\XIVLauncher\addon\Hooks\5.2.3.1\SharpDX.DXGI.dll</HintPath>
+      <HintPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\dev')">$(AppData)\XIVLauncher\addon\Hooks\dev\SharpDX.DXGI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
