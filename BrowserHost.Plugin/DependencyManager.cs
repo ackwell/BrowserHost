@@ -31,8 +31,8 @@ namespace BrowserHost.Plugin
 			{
 				Url = "https://github.com/ackwell/BrowserHost/releases/download/cef-binaries/cefsharp-{VERSION}.zip",
 				Directory = "cef",
-				Version = "81.3.10+gb223419+chromium-81.0.4044.138",
-				Checksum = "02B06F5D7015493AD468C1548C237914C127506B3D3EDF9C3DDD4EB926B3F8CE",
+				Version = "89.0.17+ge7bbb1d+chromium-89.0.4389.114",
+				Checksum = "0710C93F7FEC62064EC1811AD0398C343342D17CFFA0E091FD21C5BE5A15CF69",
 			}
 		};
 
