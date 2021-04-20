@@ -119,17 +119,18 @@
     </BootstrapperPackage>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-
-  <ItemGroup><AdditionalCefFiles Include="cef\**\*" /></ItemGroup>
+  <ItemGroup>
+    <AdditionalCefFiles Include="cef\**\*" />
+  </ItemGroup>
   <Target Name="CopyVersionFiles" AfterTargets="Build">
     <Copy SourceFiles="@(AdditionalCefFiles)" DestinationFolder="$(OutDir)\$(CefSharpTargetDir)\%(RecursiveDir)" />
   </Target>
-
   <Target Name="MoveCefAssemblies" AfterTargets="Build">
-    <ItemGroup><OutputCefAssemblies Include="$(OutDir)CefSharp.*" /></ItemGroup>
+    <ItemGroup>
+      <OutputCefAssemblies Include="$(OutDir)CefSharp.*" />
+    </ItemGroup>
     <Move SourceFiles="@(OutputCefAssemblies)" DestinationFolder="$(OutDir)\$(CefSharpTargetDir)" />
   </Target>
-  
   <PropertyGroup>
     <PostBuildEvent>
     </PostBuildEvent>
