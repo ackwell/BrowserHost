@@ -28,13 +28,12 @@ namespace BrowserHost.Plugin
 		private Dictionary<Guid, Inlay> inlays = new Dictionary<Guid, Inlay>();
 
 		// Required for LivePluginLoader support
-		private string Location = Assembly.GetExecutingAssembly().Location;
-		private void SetLocation(string path) { Location = path; } 
+		public string AssemblyLocation { get; private set; } = Assembly.GetExecutingAssembly().Location;
 
 		public void Initialize(DalamudPluginInterface pluginInterface)
 		{
 			this.pluginInterface = pluginInterface;
-			pluginDir = Path.GetDirectoryName(Location);
+			pluginDir = Path.GetDirectoryName(AssemblyLocation);
 
 			// Hook up render hook
 			pluginInterface.UiBuilder.OnBuildUi += Render;
