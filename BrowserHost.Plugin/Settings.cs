@@ -29,6 +29,7 @@ namespace BrowserHost.Plugin
 #else
 		private bool open = false;
 #endif
+		private string[] inlayCommands = { "reload" };
 
 		private List<FrameTransportMode> availableTransports = new List<FrameTransportMode>();
 
@@ -56,53 +57,80 @@ namespace BrowserHost.Plugin
 			// TODO: Add further config handling if required here.
 		}
 
+		private void PrintUnknownCommand(string setting = null)
+		{
+			setting = String.IsNullOrEmpty(setting) ? "" : $" '{setting}'";
+			pluginInterface.Framework.Gui.Chat.PrintError(
+				$"Unknown command{setting}. Valid commands are: url, hidden, locked, clickthrough, reload.");
+		}
 		public void HandleInlayCommand(string rawArgs)
 		{
 			var args = rawArgs.Split(null as char[], 3, StringSplitOptions.RemoveEmptyEntries);
 
 			// Ensure there's enough arguments
-			if (args.Length < 3)
+			if (args.Length < 1)
 			{
 				pluginInterface.Framework.Gui.Chat.PrintError(
-					"Invalid inlay command. Supported syntax: '[inlayCommandName] [setting] [value]'");
+					"Invalid inlay command. Supported syntax: '[inlayCommandName] [command] [value]'");
 				return;
 			}
+			string inlayName = args.Length > 0 ? args[0] : null;
+			string setting = args.Length > 1 ? args[1] : null;
+			string value = args.Length > 2 ? args[2] : null;
 
 			// Find the matching inlay config
-			var targetConfig = Config.Inlays.Find(inlay => GetInlayCommandName(inlay) == args[0]);
+			var targetConfig = Config.Inlays.Find(inlay => GetInlayCommandName(inlay) == inlayName);
 			if (targetConfig == null)
 			{
 				pluginInterface.Framework.Gui.Chat.PrintError(
-					$"Unknown inlay '{args[0]}'.");
+					$"Unknown inlay '{inlayName}'.");
 				return;
 			}
 
-			switch (args[1])
+			if (setting == null)
 			{
-				case "url":
-					CommandSettingString(args[2], ref targetConfig.Url);
-					// TODO: This call is duped with imgui handling. DRY.
-					NavigateInlay(targetConfig);
-					break;
-				case "locked":
-					CommandSettingBoolean(args[2], ref targetConfig.Locked);
-					break;
-				case "hidden":
-					CommandSettingBoolean(args[2], ref targetConfig.Hidden);
-					break;
-				case "typethrough":
-					CommandSettingBoolean(args[2], ref targetConfig.TypeThrough);
-					break;
-				case "clickthrough":
-					CommandSettingBoolean(args[2], ref targetConfig.ClickThrough);
-					break;
-				default:
-					pluginInterface.Framework.Gui.Chat.PrintError(
-						$"Unknown setting '{args[1]}. Valid settings are: url,hidden,locked,clickthrough.");
-					return;
+				PrintUnknownCommand();
+				return;
 			}
 
-			SaveSettings();
+			if (!inlayCommands.Contains(setting) && value != null)
+			{
+				switch (setting)
+				{
+					case "url":
+						CommandSettingString(value, ref targetConfig.Url);
+						// TODO: This call is duped with imgui handling. DRY.
+						NavigateInlay(targetConfig);
+						break;
+					case "locked":
+						CommandSettingBoolean(value, ref targetConfig.Locked);
+						break;
+					case "hidden":
+						CommandSettingBoolean(value, ref targetConfig.Hidden);
+						break;
+					case "typethrough":
+						CommandSettingBoolean(value, ref targetConfig.TypeThrough);
+						break;
+					case "clickthrough":
+						CommandSettingBoolean(value, ref targetConfig.ClickThrough);
+						break;
+					default:
+						PrintUnknownCommand(setting);
+						return;
+				}
+
+				SaveSettings();
+			} else {
+				switch (setting)
+				{
+					case "reload":
+						ReloadInlay(targetConfig);
+						break;
+					default:
+						PrintUnknownCommand(setting);
+						return;
+				}
+			}
 		}
 
 		private void CommandSettingString(string value, ref string target)
@@ -125,7 +153,7 @@ namespace BrowserHost.Plugin
 					break;
 				default:
 					pluginInterface.Framework.Gui.Chat.PrintError(
-						$"Unknown boolean value '{value}. Valid values are: on,off,toggle.");
+						$"Unknown boolean value '{value}. Valid values are: on, off, toggle.");
 					break;
 			}
 		}
