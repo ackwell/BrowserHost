@@ -1,6 +1,7 @@
 ﻿using BrowserHost.Common;
-using Dalamud.Game.Command;
+using Dalamud.Game.Gui;
 using Dalamud.Interface;
+using Dalamud.IoC;
 using Dalamud.Plugin;
 using ImGuiNET;
 using System;
@@ -22,7 +23,8 @@ namespace BrowserHost.Plugin
 
 		public Configuration Config;
 
-		private DalamudPluginInterface pluginInterface;
+		[PluginService] private static DalamudPluginInterface pluginInterface { get; set; }
+		[PluginService] private static ChatGui chat { get; set; }
 
 #if DEBUG
 		private bool open = true;
@@ -35,11 +37,9 @@ namespace BrowserHost.Plugin
 		InlayConfiguration selectedInlay = null;
 		private Timer saveDebounceTimer;
 
-		public Settings(DalamudPluginInterface pluginInterface)
+		public Settings()
 		{
-			this.pluginInterface = pluginInterface;
-
-			pluginInterface.UiBuilder.OnOpenConfigUi += (sender, args) => open = true;
+			pluginInterface.UiBuilder.OpenConfigUi += () => open = true;
 		}
 
 		public void Initialise()
@@ -63,7 +63,7 @@ namespace BrowserHost.Plugin
 			// Ensure there's enough arguments
 			if (args.Length < 3)
 			{
-				pluginInterface.Framework.Gui.Chat.PrintError(
+				chat.PrintError(
 					"Invalid inlay command. Supported syntax: '[inlayCommandName] [setting] [value]'");
 				return;
 			}
@@ -72,7 +72,7 @@ namespace BrowserHost.Plugin
 			var targetConfig = Config.Inlays.Find(inlay => GetInlayCommandName(inlay) == args[0]);
 			if (targetConfig == null)
 			{
-				pluginInterface.Framework.Gui.Chat.PrintError(
+				chat.PrintError(
 					$"Unknown inlay '{args[0]}'.");
 				return;
 			}
@@ -97,7 +97,7 @@ namespace BrowserHost.Plugin
 					CommandSettingBoolean(args[2], ref targetConfig.ClickThrough);
 					break;
 				default:
-					pluginInterface.Framework.Gui.Chat.PrintError(
+					chat.PrintError(
 						$"Unknown setting '{args[1]}. Valid settings are: url,hidden,locked,clickthrough.");
 					return;
 			}
@@ -124,7 +124,7 @@ namespace BrowserHost.Plugin
 					target = !target;
 					break;
 				default:
-					pluginInterface.Framework.Gui.Chat.PrintError(
+					chat.PrintError(
 						$"Unknown boolean value '{value}. Valid values are: on,off,toggle.");
 					break;
 			}
@@ -347,7 +347,7 @@ namespace BrowserHost.Plugin
 				}
 
 				if (options.Count() <= 1) { ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f); }
-				var transportChanged =  ImGui.Combo("Frame transport", ref currentIndex, options.ToArray(), options.Count());
+				var transportChanged = ImGui.Combo("Frame transport", ref currentIndex, options.ToArray(), options.Count());
 				if (options.Count() <= 1) { ImGui.PopStyleVar(); }
 
 				// TODO: Flipping this should probably try to rebuild existing inlays

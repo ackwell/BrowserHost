@@ -1,6 +1,6 @@
 ﻿using BrowserHost.Common;
 using BrowserHost.Plugin.TextureHandlers;
-using Dalamud.Plugin;
+using Dalamud.Logging;
 using ImGuiNET;
 using System;
 using System.Numerics;

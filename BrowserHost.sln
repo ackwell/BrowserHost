@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30309.148
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrowserHost.Plugin", "BrowserHost.Plugin\BrowserHost.Plugin.csproj", "{D047232D-8C20-4185-AC61-78AED2A1EA74}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BrowserHost.Plugin", "BrowserHost.Plugin\BrowserHost.Plugin.csproj", "{D047232D-8C20-4185-AC61-78AED2A1EA74}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrowserHost.Renderer", "BrowserHost.Renderer\BrowserHost.Renderer.csproj", "{A9B66761-A607-4B6C-B80E-33A96BB16D14}"
 EndProject
@@ -27,7 +27,6 @@ Global
 		{D047232D-8C20-4185-AC61-78AED2A1EA74}.Debug|x64.ActiveCfg = Debug|x64
 		{D047232D-8C20-4185-AC61-78AED2A1EA74}.Debug|x64.Build.0 = Debug|x64
 		{D047232D-8C20-4185-AC61-78AED2A1EA74}.Release|x64.ActiveCfg = Release|x64
-		{D047232D-8C20-4185-AC61-78AED2A1EA74}.Release|x64.Build.0 = Release|x64
 		{A9B66761-A607-4B6C-B80E-33A96BB16D14}.Debug|x64.ActiveCfg = Debug|x64
 		{A9B66761-A607-4B6C-B80E-33A96BB16D14}.Debug|x64.Build.0 = Debug|x64
 		{A9B66761-A607-4B6C-B80E-33A96BB16D14}.Release|x64.ActiveCfg = Release|x64
