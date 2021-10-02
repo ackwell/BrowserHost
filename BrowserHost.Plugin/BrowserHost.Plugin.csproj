@@ -7,7 +7,8 @@
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<Platforms>x64</Platforms>
-  </PropertyGroup>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	</PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutputPath>..\bin\Debug\plugin\</OutputPath>
     <UseVSHostingProcess>false</UseVSHostingProcess>
@@ -57,9 +58,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="SharedMemory">
-      <Version>2.2.3</Version>
-    </PackageReference>
-    <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
+    <PackageReference Include="SharedMemory" Version="2.2.3" />
   </ItemGroup>
 </Project>

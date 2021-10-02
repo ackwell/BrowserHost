@@ -30,7 +30,7 @@ namespace BrowserHost.Plugin
 			var processArgs = new RenderProcessArguments()
 			{
 				ParentPid = pid,
-				DalamudAssemblyDir = AppDomain.CurrentDomain.SetupInformation.ApplicationBase,
+				DalamudAssemblyDir = Path.GetDirectoryName(typeof(PluginLog).Assembly.Location),
 				CefAssemblyDir = dependencyManager.GetDependencyPathFor("cef"),
 				CefCacheDir = Path.Combine(Path.GetDirectoryName(pluginDir), "cef-cache"),
 				DxgiAdapterLuid = DxHandler.AdapterLuid,
@@ -41,7 +41,7 @@ namespace BrowserHost.Plugin
 			process = new Process();
 			process.StartInfo = new ProcessStartInfo()
 			{
-				FileName = Path.Combine(pluginDir, "BrowserHost.Renderer.exe"),
+				FileName = Path.Combine(pluginDir, "renderer", "BrowserHost.Renderer.exe"),
 				Arguments = processArgs.Serialise().Replace("\"", "\"\"\""),
 				UseShellExecute = false,
 				CreateNoWindow = true,
