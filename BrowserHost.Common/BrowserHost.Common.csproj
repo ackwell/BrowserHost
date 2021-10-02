@@ -13,8 +13,7 @@
     <LangVersion>8.0</LangVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
-
-    <RestoreProjectStyle>PackageReference</RestoreProjectStyle> 
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
