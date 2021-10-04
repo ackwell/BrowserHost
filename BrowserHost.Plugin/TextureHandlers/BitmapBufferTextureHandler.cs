@@ -15,6 +15,7 @@ namespace BrowserHost.Plugin.TextureHandlers
 	class BitmapBufferTextureHandler : ITextureHandler
 	{
 		private Thread frameBufferThread;
+		private CancellationTokenSource cancellationTokenSource;
 		private D3D11.Texture2D texture;
 		private TextureWrap textureWrap;
 
@@ -23,16 +24,24 @@ namespace BrowserHost.Plugin.TextureHandlers
 
 		public BitmapBufferTextureHandler(BitmapBufferResponse response)
 		{
+			cancellationTokenSource = new CancellationTokenSource();
 			frameBufferThread = new Thread(FrameBufferThread);
-			frameBufferThread.Start(response.FrameInfoBufferName);
+			frameBufferThread.Start(new ThreadArguments()
+			{
+				BufferName = response.FrameInfoBufferName,
+				CancellationToken = cancellationTokenSource.Token,
+			});
 
 			bitmapBuffer = new BufferReadWrite(response.BitmapBufferName);
 		}
 
 		public void Dispose()
 		{
-			// TODO: Nicer handling of this. Maybe wait handle that closes the loop or something?
-			frameBufferThread.Abort();
+			cancellationTokenSource.Cancel();
+			cancellationTokenSource.Dispose();
+			if (!(texture?.IsDisposed ?? true)) { texture.Dispose(); }
+			textureWrap?.Dispose();
+			bitmapBuffer.Dispose();
 		}
 
 		public void Render()
@@ -125,14 +134,23 @@ namespace BrowserHost.Plugin.TextureHandlers
 			textureWrap = new D3DTextureWrap(view, texture.Description.Width, texture.Description.Height);
 		}
 
-		private void FrameBufferThread(object bufferName)
+		struct ThreadArguments
 		{
+			public string BufferName;
+			public CancellationToken CancellationToken;
+		}
+
+		private void FrameBufferThread(object arguments)
+		{
+			var args = (ThreadArguments)arguments;
 			// Open up a reference to the frame info buffer
-			using var frameInfoBuffer = new CircularBuffer((string)bufferName);
+			using var frameInfoBuffer = new CircularBuffer(args.BufferName);
 
 			// We're just looping the blocking read operation forever. Parent will abort the to shut down.
 			while (true)
 			{
+				args.CancellationToken.ThrowIfCancellationRequested();
+
 				frameInfoBuffer.Read(out BitmapFrame frame, timeout: Timeout.Infinite);
 				frameQueue.Enqueue(frame);
 			}
