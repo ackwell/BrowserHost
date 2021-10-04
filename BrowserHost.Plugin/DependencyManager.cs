@@ -39,6 +39,7 @@ namespace BrowserHost.Plugin
 		public event EventHandler DependenciesReady;
 
 		private string dependencyDir;
+		private string debugCheckDir;
 		private Dependency[] missingDependencies;
 		private ConcurrentDictionary<string, float> installProgress = new ConcurrentDictionary<string, float>();
 
@@ -57,10 +58,10 @@ namespace BrowserHost.Plugin
 		private static short DEP_COMPLETE = -2;
 		private static short DEP_FAILED = -3;
 
-		public DependencyManager(string pluginDir)
+		public DependencyManager(string pluginDir, string pluginConfigDir)
 		{
-			// We're storing dependencies a level above the plugin so they get preserved across plugin updates
-			dependencyDir = Path.GetDirectoryName(pluginDir);
+			dependencyDir = Path.Join(pluginConfigDir, "dependencies");
+			debugCheckDir = Path.GetDirectoryName(pluginDir);
 		}
 
 		public void Initialise()
@@ -187,6 +188,8 @@ namespace BrowserHost.Plugin
 
 		private string GetDependencyPath(Dependency dependency)
 		{
+			var localDebug = Path.Combine(debugCheckDir, dependency.Directory);
+			if (Directory.Exists(localDebug)) { return localDebug; }
 			return Path.Combine(dependencyDir, dependency.Directory);
 		}
 

@@ -24,6 +24,7 @@ namespace BrowserHost.Plugin
 		[PluginService] private static CommandManager commandManager { get; set; }
 		[PluginService] private static ChatGui chat { get; set; }
 		private string pluginDir;
+		private string pluginConfigDir;
 
 		private DependencyManager dependencyManager;
 		private Settings settings;
@@ -38,11 +39,12 @@ namespace BrowserHost.Plugin
 		{
 			//this.pluginInterface = pluginInterface;
 			pluginDir = Path.GetDirectoryName(AssemblyLocation);
+			pluginConfigDir = pluginInterface.GetPluginConfigDirectory();
 
 			// Hook up render hook
 			pluginInterface.UiBuilder.Draw += Render;
 
-			dependencyManager = new DependencyManager(pluginDir);
+			dependencyManager = new DependencyManager(pluginDir, pluginConfigDir);
 			dependencyManager.DependenciesReady += (sender, args) => DependenciesReady();
 			dependencyManager.Initialise();
 		}
@@ -59,7 +61,7 @@ namespace BrowserHost.Plugin
 			// Boot the render process. This has to be done before initialising settings to prevent a
 			// race conditionson inlays recieving a null reference.
 			var pid = Process.GetCurrentProcess().Id;
-			renderProcess = new RenderProcess(pid, pluginDir, dependencyManager);
+			renderProcess = new RenderProcess(pid, pluginDir, pluginConfigDir, dependencyManager);
 			renderProcess.Recieve += HandleIpcRequest;
 			renderProcess.Start();
 

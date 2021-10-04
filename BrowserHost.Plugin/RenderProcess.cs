@@ -20,19 +20,25 @@ namespace BrowserHost.Plugin
 		private string keepAliveHandleName;
 		private string ipcChannelName;
 
-		public RenderProcess(int pid, string pluginDir, DependencyManager dependencyManager)
+		public RenderProcess(
+			int pid,
+			string pluginDir,
+			string configDir,
+			DependencyManager dependencyManager
+		)
 		{
 			keepAliveHandleName = $"BrowserHostRendererKeepAlive{pid}";
 			ipcChannelName = $"BrowserHostRendererIpcChannel{pid}";
 
 			ipc = new IpcBuffer<UpstreamIpcRequest, DownstreamIpcRequest>(ipcChannelName, request => Recieve?.Invoke(this, request));
 
+			var cefAssemblyDir = dependencyManager.GetDependencyPathFor("cef");
 			var processArgs = new RenderProcessArguments()
 			{
 				ParentPid = pid,
 				DalamudAssemblyDir = Path.GetDirectoryName(typeof(PluginLog).Assembly.Location),
-				CefAssemblyDir = dependencyManager.GetDependencyPathFor("cef"),
-				CefCacheDir = Path.Combine(Path.GetDirectoryName(pluginDir), "cef-cache"),
+				CefAssemblyDir = cefAssemblyDir,
+				CefCacheDir = Path.Combine(configDir, "cef-cache"),
 				DxgiAdapterLuid = DxHandler.AdapterLuid,
 				KeepAliveHandleName = keepAliveHandleName,
 				IpcChannelName = ipcChannelName,
