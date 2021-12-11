@@ -6,7 +6,7 @@ namespace BrowserHost.Renderer
 {
 	static class CefHandler
 	{
-		public static void Initialise(string cefAssemblyPath, string cefCacheDir)
+		public static void Initialise(string cefAssemblyPath, string cefCacheDir, int parentProcessId)
 		{
 			var settings = new CefSettings()
 			{
@@ -19,8 +19,14 @@ namespace BrowserHost.Renderer
 			settings.CefCommandLineArgs["autoplay-policy"] = "no-user-gesture-required";
 			settings.EnableAudio();
 			settings.SetOffScreenRenderingBestPerformanceArgs();
+			settings.UserAgent = GetUserAgent() + parentProcessId;
 
 			Cef.Initialize(settings, performDependencyCheck: false, browserProcessHandler: null);
+		}
+
+		public static string GetUserAgent()
+		{
+			return $"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{Cef.CefSharpVersion} Safari/537.36 ProcessID/";
 		}
 
 		public static void Shutdown()
