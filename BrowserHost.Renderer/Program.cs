@@ -13,6 +13,7 @@ namespace BrowserHost.Renderer
 {
 	class Program
 	{
+		private static int ParentProcessID;
 		private static string cefAssemblyDir;
 		private static string dalamudAssemblyDir;
 
@@ -31,6 +32,7 @@ namespace BrowserHost.Renderer
 			// Need to pull these out before Run() so the resolver can access.
 			cefAssemblyDir = args.CefAssemblyDir;
 			dalamudAssemblyDir = args.DalamudAssemblyDir;
+			ParentProcessID = args.ParentPid;
 
 			AppDomain.CurrentDomain.AssemblyResolve += CustomAssemblyResolver;
 
@@ -52,7 +54,7 @@ namespace BrowserHost.Renderer
 #endif
 
 			var dxRunning = DxHandler.Initialise(args.DxgiAdapterLuid);
-			CefHandler.Initialise(cefAssemblyDir, args.CefCacheDir);
+			CefHandler.Initialise(cefAssemblyDir, args.CefCacheDir, ParentProcessID);
 
 			ipcBuffer = new IpcBuffer<DownstreamIpcRequest, UpstreamIpcRequest>(args.IpcChannelName, HandleIpcRequest);
 
